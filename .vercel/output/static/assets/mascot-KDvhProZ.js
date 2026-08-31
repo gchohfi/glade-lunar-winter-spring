@@ -1,0 +1,1 @@
+import{s as e}from"./link-BLIs5tpD.js";import{r as t}from"./card-Pys4HMI0.js";var n=e(),r={idle:`/mascot.jpg`,win:`/mascot-win.jpg`,try:`/mascot-try.jpg`};function i({mood:e=`idle`,className:i,alt:a=`Nico, o cadete onça da Missão Tabuada`}){return(0,n.jsx)(`img`,{src:r[e],alt:a,className:t(`pointer-events-none select-none object-contain`,i),draggable:!1})}export{i as t};

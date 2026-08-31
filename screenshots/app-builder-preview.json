@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Missão Tabuada",
+      "hasCanvas": false,
+      "bodyTextLen": 202,
+      "bodyTextHash": "93ed3329fb21bce700a7973b4315f250f649dbe0efc0c58b6e08e4bdde8568fa",
+      "bodyTextPrefix": "ACADEMIA DE VOO Olá, cadete. Eu sou o Nico. Um pouquinho por dia",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Missão Tabuada",
+      "hasCanvas": false,
+      "bodyTextLen": 202,
+      "bodyTextHash": "93ed3329fb21bce700a7973b4315f250f649dbe0efc0c58b6e08e4bdde8568fa",
+      "bodyTextPrefix": "ACADEMIA DE VOO Olá, cadete. Eu sou o Nico. Um pouquinho por dia",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
