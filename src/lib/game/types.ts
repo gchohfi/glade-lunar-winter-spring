@@ -9,9 +9,12 @@ export type RankId =
   | "almirante"
   | "lenda";
 
+export type FactOp = "mul" | "div";
+
 export type Fact = {
   a: number;
   b: number;
+  op?: FactOp;
 };
 
 export type FactStat = {
@@ -105,8 +108,33 @@ export function formatClock(ms: number): string {
   return `${m}:${r.toString().padStart(2, "0")}`;
 }
 
+export function factOp(fact: Fact): FactOp {
+  return fact.op ?? "mul";
+}
+
 export function factKey(fact: Fact): string {
-  return `${fact.a}x${fact.b}`;
+  return factOp(fact) === "div" ? `${fact.a}d${fact.b}` : `${fact.a}x${fact.b}`;
+}
+
+export function factAnswer(fact: Fact): number {
+  return factOp(fact) === "div" ? fact.a / fact.b : fact.a * fact.b;
+}
+
+export function formatAnswer(n: number): string {
+  if (!Number.isFinite(n)) return "?";
+  const rounded = Math.round(n * 2) / 2;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return rounded.toFixed(1).replace(".", ",");
+}
+
+export function parseGuess(raw: string): number {
+  const cleaned = raw.trim().replace(",", ".");
+  if (!cleaned || cleaned === "." || cleaned === ",") return Number.NaN;
+  return Number(cleaned);
+}
+
+export function guessesMatch(guess: number, answer: number): boolean {
+  return Number.isFinite(guess) && Math.abs(guess - answer) < 0.051;
 }
 
 export function todayKey(now = new Date()): string {
