@@ -1,4 +1,4 @@
-import { DAILY_GOAL, TIMEZONE, todayKey, type DayStat, type PlayerState } from "./types";
+import { DAILY_GOAL, TIMEZONE, todayKey, type DayStat, type PlayerState } from "./types.ts";
 
 const WEEK_LABELS = ["S", "T", "Q", "Q", "S", "S", "D"] as const;
 

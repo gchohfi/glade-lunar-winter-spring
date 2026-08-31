@@ -1,11 +1,11 @@
-import { rankById } from "./ranks";
-import { PLANETS, shipForLevel } from "./worlds";
+import { rankById } from "./ranks.ts";
+import { PLANETS, shipForLevel } from "./worlds.ts";
 import {
   displayName,
   PRIZE_EVERY,
   type ParentAlert,
   type PlayerState,
-} from "./types";
+} from "./types.ts";
 
 export const IMPORTANT_LEVELS = [5, 10, 15, 20, 25, 30] as const;
 

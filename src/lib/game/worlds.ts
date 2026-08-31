@@ -1,4 +1,4 @@
-import type { RankId } from "./types";
+import type { RankId } from "./types.ts";
 
 export type Planet = {
   id: string;

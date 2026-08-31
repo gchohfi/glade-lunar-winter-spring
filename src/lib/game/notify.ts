@@ -1,4 +1,4 @@
-import type { ParentAlert } from "./types";
+import type { ParentAlert } from "./types.ts";
 
 export function notificationPermission(): NotificationPermission | "unsupported" {
   if (typeof window === "undefined" || typeof Notification === "undefined") {

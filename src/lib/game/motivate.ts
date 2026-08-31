@@ -1,6 +1,6 @@
-import { PRIZE_EVERY, displayName, type PlayerState } from "./types";
-import { todayDone } from "./daily";
-import { currentStreak } from "./adaptive";
+import { PRIZE_EVERY, displayName, type PlayerState } from "./types.ts";
+import { todayDone } from "./daily.ts";
+import { currentStreak } from "./adaptive.ts";
 
 export function prizeLabel(name: string | undefined): string {
   const t = (name ?? "").trim();

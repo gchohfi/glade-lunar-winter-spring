@@ -1,6 +1,8 @@
-import { rankById, RANK_MIX } from "./ranks";
-import { applyRunProgress, type ProgressDelta } from "./progress";
-import { collectParentAlerts } from "./alerts";
+import { rankById, RANK_MIX } from "./ranks.ts";
+import { applyRunProgress, type ProgressDelta } from "./progress.ts";
+import { collectParentAlerts } from "./alerts.ts";
+import { maybeEarnShield, settleShields } from "./shields.ts";
+import { settleQuests, type Quest } from "./quests.ts";
 import {
   factKey,
   todayKey,
@@ -12,7 +14,7 @@ import {
   PRIZE_EVERY,
   DAILY_GOAL,
   TARGET_CORRECT,
-} from "./types";
+} from "./types.ts";
 
 export function allFactsForRank(rankId: RankId): Fact[] {
   const rank = rankById(rankId);
@@ -211,7 +213,7 @@ export function recycleMiss(queue: Fact[], missed: Fact): Fact[] {
   return [...rest.slice(0, slot), missed, ...rest.slice(slot)];
 }
 
-function bumpFact(
+export function bumpFact(
   facts: Record<string, FactStat>,
   fact: Fact,
   ok: boolean,
@@ -245,6 +247,8 @@ export type MissionOutcome = {
   progress: ProgressDelta;
   newAlerts: ReturnType<typeof collectParentAlerts>;
   dailyJustDone: boolean;
+  shieldEarned: boolean;
+  questsCompleted: Quest[];
 };
 
 export function applyMissionResult(
@@ -254,31 +258,35 @@ export function applyMissionResult(
     bestCombo?: number;
     planetIndex?: number;
   },
+  now = new Date(),
 ): MissionOutcome {
-  const day = todayKey();
-  const dayPrev = state.days[day] ?? { answered: 0, correct: 0, missions: 0 };
+  // Dias perdidos desde a última visita são assentados (escudos) ANTES de
+  // registrar o resultado de hoje.
+  const settled = settleShields(state, now);
+  const day = todayKey(now);
+  const dayPrev = settled.days[day] ?? { answered: 0, correct: 0, missions: 0 };
 
-  let facts = state.facts;
+  let facts = settled.facts;
   for (const tried of record.factsTried) {
     facts = bumpFact(facts, tried.fact, tried.ok, tried.ms);
   }
 
   const passed = record.passed;
-  const consecutiveWins = passed ? state.consecutiveWins + 1 : 0;
-  const consecutiveFails = passed ? 0 : state.consecutiveFails + 1;
+  const consecutiveWins = passed ? settled.consecutiveWins + 1 : 0;
+  const consecutiveFails = passed ? 0 : settled.consecutiveFails + 1;
   const rankId = record.rankId;
   const promotedTo: RankId | null = null;
   const demotedTo: RankId | null = null;
 
   const prizeCycle = (() => {
-    if (!passed) return state.prizeCycle;
-    if (state.prizeCycle >= PRIZE_EVERY) return PRIZE_EVERY;
-    return state.prizeCycle + 1;
+    if (!passed) return settled.prizeCycle;
+    if (settled.prizeCycle >= PRIZE_EVERY) return PRIZE_EVERY;
+    return settled.prizeCycle + 1;
   })();
   const prizesEarned =
-    passed && state.prizeCycle === PRIZE_EVERY - 1
-      ? state.prizesEarned + 1
-      : state.prizesEarned;
+    passed && settled.prizeCycle === PRIZE_EVERY - 1
+      ? settled.prizesEarned + 1
+      : settled.prizesEarned;
   const prizeReady = prizeCycle >= PRIZE_EVERY;
 
   const mission: MissionRecord = {
@@ -292,24 +300,33 @@ export function applyMissionResult(
     correct: record.correct,
     wrong: record.wrong,
     passed,
+    bestCombo: record.bestCombo ?? 0,
   };
 
+  const tables = { ...dayPrev.tables };
+  for (const tried of record.factsTried) {
+    if (!tried.ok) continue;
+    tables[tried.fact.a] = (tables[tried.fact.a] ?? 0) + 1;
+  }
+
   const mid: PlayerState = {
-    ...state,
+    ...settled,
     rankId,
     consecutiveWins,
     consecutiveFails,
-    totalMissionsPassed: state.totalMissionsPassed + (passed ? 1 : 0),
+    totalMissionsPassed: settled.totalMissionsPassed + (passed ? 1 : 0),
     prizeCycle: prizeReady ? PRIZE_EVERY : prizeCycle,
     prizesEarned,
     facts,
-    missions: [mission, ...state.missions].slice(0, 60),
+    missions: [mission, ...settled.missions].slice(0, 60),
     days: {
-      ...state.days,
+      ...settled.days,
       [day]: {
+        ...dayPrev,
         answered: dayPrev.answered + record.correct + record.wrong,
         correct: dayPrev.correct + record.correct,
         missions: dayPrev.missions + (passed ? 1 : 0),
+        tables,
       },
     },
   };
@@ -321,28 +338,47 @@ export function applyMissionResult(
     bestCombo: record.bestCombo ?? 0,
     elapsedMs: record.elapsedMs,
     timeLimitMs: record.timeLimitMs,
-    planetIndex: record.planetIndex ?? state.selectedPlanet,
+    planetIndex: record.planetIndex ?? settled.selectedPlanet,
   });
 
-  const prizeJustReady = prizeReady && state.prizeCycle < PRIZE_EVERY;
-  const newAlerts = collectParentAlerts({
-    prev: state,
-    next: progressed.state,
-    prizeJustReady,
-  });
-  const parentAlerts = [...newAlerts, ...(progressed.state.parentAlerts ?? [])].slice(0, 40);
+  let next = progressed.state;
+  if (progressed.delta.isRecord) {
+    const d = next.days[day] ?? { answered: 0, correct: 0, missions: 0 };
+    next = {
+      ...next,
+      days: { ...next.days, [day]: { ...d, records: (d.records ?? 0) + 1 } },
+    };
+  }
+
   const prevCorrect = state.days[day]?.correct ?? 0;
-  const nextCorrect = progressed.state.days[day]?.correct ?? 0;
+  const nextCorrect = next.days[day]?.correct ?? 0;
   const dailyJustDone = prevCorrect < DAILY_GOAL && nextCorrect >= DAILY_GOAL;
 
+  const earned = maybeEarnShield(next, dailyJustDone, now);
+  next = earned.state;
+
+  const quests = settleQuests(next, day);
+  next = quests.state;
+
+  const prizeJustReady = prizeReady && state.prizeCycle < PRIZE_EVERY;
+  // Alertas por último: o XP das missões do dia também pode cruzar um marco de nível.
+  const newAlerts = collectParentAlerts({
+    prev: state,
+    next,
+    prizeJustReady,
+  });
+  const parentAlerts = [...newAlerts, ...(next.parentAlerts ?? [])].slice(0, 40);
+
   return {
-    state: { ...progressed.state, parentAlerts },
+    state: { ...next, parentAlerts },
     promotedTo,
     demotedTo,
     prizeReady,
     progress: progressed.delta,
     newAlerts,
     dailyJustDone,
+    shieldEarned: earned.earned,
+    questsCompleted: quests.completed,
   };
 }
 
@@ -374,18 +410,19 @@ export function weakestFacts(
   return rows.slice(0, limit);
 }
 
-export function currentStreak(state: PlayerState): number {
+export function currentStreak(state: PlayerState, now = new Date()): number {
   let streak = 0;
-  const start = new Date();
   for (let i = 0; i < 60; i += 1) {
-    const d = new Date(start);
-    d.setDate(start.getDate() - i);
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
     const key = todayKey(d);
     const day = state.days[key];
     if (day && day.correct >= DAILY_GOAL) {
       streak += 1;
       continue;
     }
+    // Dia protegido por escudo: a sequência atravessa sem somar.
+    if (day?.shielded) continue;
     if (i === 0) continue;
     break;
   }

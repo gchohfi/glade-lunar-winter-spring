@@ -1,5 +1,5 @@
-import type { RankDef, RankId } from "./types";
-import { TARGET_CORRECT } from "./types";
+import type { RankDef, RankId } from "./types.ts";
+import { TARGET_CORRECT } from "./types.ts";
 
 const ALL_TABLES = [2, 3, 4, 5, 6, 7, 8, 9];
 const ALL_FACTORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];

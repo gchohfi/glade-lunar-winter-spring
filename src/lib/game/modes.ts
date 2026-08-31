@@ -1,4 +1,4 @@
-import type { ModeId } from "./types";
+import type { ModeId } from "./types.ts";
 
 export type ModeCard = {
   id: ModeId;

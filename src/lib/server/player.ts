@@ -7,7 +7,7 @@ import { migrateState } from "@/lib/game/progress";
 
 const playerStateSchema = z
   .object({
-    version: z.union([z.literal(1), z.literal(2)]),
+    version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     childName: z.string(),
     rankId: z.string(),
     consecutiveWins: z.number(),
@@ -32,6 +32,8 @@ const playerStateSchema = z
     parentAlerts: z.array(z.unknown()).optional(),
     notifyParents: z.boolean().optional(),
     prizeName: z.string().optional(),
+    shields: z.number().optional(),
+    lastSettledDay: z.string().optional(),
   })
   .passthrough();
 

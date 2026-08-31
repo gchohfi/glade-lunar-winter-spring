@@ -1,17 +1,21 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { Shield as ShieldIcon } from "lucide-react";
 import { SignedIn, SignedOut, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { AppShell } from "@/components/app-shell";
 import { persistCloud } from "@/components/cloud-sync";
+import { MasteryGrid } from "@/components/mastery-grid";
 import { ParentAlerts } from "@/components/parent-alerts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { currentStreak, weakestFacts } from "@/lib/game/adaptive";
 import { unreadAlerts } from "@/lib/game/alerts";
+import { masteryCounts } from "@/lib/game/mastery";
 import { missionsToPrize, prizeLabel } from "@/lib/game/motivate";
 import { fireParentNotify } from "@/lib/game/notify";
 import { RANKS, rankById, timeWithBoost } from "@/lib/game/ranks";
@@ -42,6 +46,13 @@ function lastDays(n: number): string[] {
 export function ParentPanel() {
   const player = usePlayer();
   const { user } = useCurrentUserState();
+  // O painel inteiro deriva de dados que só existem no cliente (localStorage e
+  // sessão). Rotas lazy hidratam depois do CloudSync, então o primeiro render
+  // precisa casar com o SSR: esqueleto até montar, painel de verdade depois.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const replaceState = usePlayer((s) => s.replaceState);
   const snapshot = usePlayer((s) => s.snapshot);
   const setChildName = usePlayer((s) => s.setChildName);
@@ -55,6 +66,8 @@ export function ParentPanel() {
   const today = player.days[todayKey()] ?? { answered: 0, correct: 0, missions: 0 };
   const weak = weakestFacts(player);
   const streak = currentStreak(player);
+  const mastery = masteryCounts(player);
+  const totalFacts = mastery.fluente + mastery.quase + mastery.aprendendo + mastery.novo;
   const days = lastDays(14);
   const prizeReady = player.prizeCycle >= PRIZE_EVERY;
 
@@ -84,6 +97,18 @@ export function ParentPanel() {
     const id = window.setInterval(tick, 15000);
     return () => window.clearInterval(id);
   }, [user, replaceState, snapshot]);
+
+  if (!mounted) {
+    return (
+      <AppShell>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell
@@ -269,7 +294,12 @@ export function ParentPanel() {
           <Card>
             <p className="text-sm text-muted">Sequência</p>
             <p className="mt-1 font-display text-2xl tabular-nums">{streak}</p>
-            <p className="text-sm text-muted">dias com a meta</p>
+            <p className="text-sm text-muted">
+              dias com a meta
+              {player.shields > 0
+                ? ` · ${player.shields} escudo${player.shields > 1 ? "s" : ""} de reserva`
+                : ""}
+            </p>
           </Card>
         </div>
 
@@ -339,24 +369,58 @@ export function ParentPanel() {
               const d = player.days[key];
               const met = (d?.correct ?? 0) >= DAILY_GOAL;
               const some = (d?.correct ?? 0) > 0;
+              const shielded = !met && d?.shielded === true;
               return (
                 <div key={key} className="text-center">
                   <div
                     className={cn(
-                      "mx-auto h-8 w-8 rounded-sm border",
+                      "mx-auto flex h-8 w-8 items-center justify-center rounded-sm border",
                       met
                         ? "border-accent bg-accent"
-                        : some
-                          ? "border-accent/30 bg-wash"
-                          : "border-line bg-surface",
+                        : shielded
+                          ? "border-accent/40 bg-wash"
+                          : some
+                            ? "border-accent/30 bg-wash"
+                            : "border-line bg-surface",
                     )}
-                    title={`${key}: ${d?.correct ?? 0} acertos`}
-                  />
+                    title={
+                      shielded
+                        ? `${key}: dia protegido pelo escudo`
+                        : `${key}: ${d?.correct ?? 0} acertos`
+                    }
+                  >
+                    {shielded ? (
+                      <ShieldIcon className="size-4 text-accent" strokeWidth={2} />
+                    ) : null}
+                  </div>
                   <p className="mt-1 text-[10px] text-faint">{key.slice(8)}</p>
                 </div>
               );
             })}
           </div>
+        </Card>
+
+        <Card>
+          <h2 className="font-display text-lg">Domínio da tabuada</h2>
+          <p className="mt-1 text-sm text-muted">
+            Cada quadrado é uma conta. Fluente = 90% de acerto em cerca de 3
+            segundos — o automático da escola.
+          </p>
+          {mastery.novo === totalFacts ? (
+            <p className="mt-3 text-sm text-muted">
+              Depois das primeiras missões, o mapa começa a colorir.
+            </p>
+          ) : (
+            <>
+              <p className="mt-2 text-sm tabular-nums text-muted">
+                <span className="font-medium text-ink">{mastery.fluente}</span> de{" "}
+                {totalFacts} contas fluentes.
+              </p>
+              <div className="mt-4">
+                <MasteryGrid state={player} />
+              </div>
+            </>
+          )}
         </Card>
 
         <Card>
@@ -391,6 +455,11 @@ export function ParentPanel() {
             <li>Doze planetas. Completar uma missão destrava o próximo e acende 1 a 3 estrelas.</li>
             <li>XP sobe a cada missão. O nível muda a nave (papel, Asa Teal, Nau-Coroa).</li>
             <li>Níveis 5, 10, 15, 20, 25 e 30, patente nova e prêmio: aviso no espaço dos pais.</li>
+            <li>
+              Escudo de sequência: meta batida 2 dias seguidos guarda 1 escudo (até 2).
+              Um dia perdido gasta um escudo e a sequência sobrevive — o dia protegido
+              só não soma.
+            </li>
             <li>Tempo extra no painel: +15s por padrão. Dá para subir até +60s.</li>
             <li>Um pouco por dia: uma missão (15 acertos). A sequência conta dias seguidos.</li>
             <li>A patente no painel abaixo força o planeta daquela patente, se precisar.</li>

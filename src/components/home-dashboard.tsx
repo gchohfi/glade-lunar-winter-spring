@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, Clock, Rocket, Trophy } from "lucide-react";
+import { Check, ChevronDown, Clock, Rocket, Shield, Trophy } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { GalaxyMap } from "@/components/galaxy-map";
+import { MasteryGrid } from "@/components/mastery-grid";
 import { Mascot } from "@/components/mascot";
+import { QuestCard } from "@/components/quest-card";
 import { WeekStrip } from "@/components/week-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +15,7 @@ import { currentStreak } from "@/lib/game/adaptive";
 import { unreadAlerts } from "@/lib/game/alerts";
 import { todayDone } from "@/lib/game/daily";
 import { missionsToPrize, nicoCheer, prizeLabel } from "@/lib/game/motivate";
+import { hasPractice, practiceTargets } from "@/lib/game/practice";
 import { rankById, timeWithBoost } from "@/lib/game/ranks";
 import { usePlayer } from "@/lib/game/store";
 import { planetAt, shipForLevel, PLANETS } from "@/lib/game/worlds";
@@ -19,6 +23,7 @@ import { DAILY_GOAL, PRIZE_EVERY, displayName, formatClock, todayKey } from "@/l
 
 export function HomeDashboard() {
   const player = usePlayer();
+  const [showMastery, setShowMastery] = useState(false);
   const setPlanet = usePlayer((s) => s.setPlanet);
   const planet = planetAt(player.selectedPlanet);
   const rank = rankById(planet.rankId);
@@ -37,6 +42,8 @@ export function HomeDashboard() {
   const cheer = nicoCheer(player);
   const left = missionsToPrize(player);
   const prize = prizeLabel(player.prizeName);
+  const canPractice = hasPractice(player);
+  const practiceTop = canPractice ? practiceTargets(player, 3) : [];
 
   return (
     <AppShell
@@ -72,6 +79,12 @@ export function HomeDashboard() {
               {streak > 0 ? (
                 <Badge>
                   {streak} dia{streak > 1 ? "s" : ""} seguido{streak > 1 ? "s" : ""}
+                </Badge>
+              ) : null}
+              {player.shields > 0 ? (
+                <Badge title="Um dia perdido gasta um escudo e a sequência sobrevive">
+                  <Shield className="mr-1 size-3.5" strokeWidth={2} />
+                  {player.shields} escudo{player.shields > 1 ? "s" : ""}
                 </Badge>
               ) : null}
             </div>
@@ -125,6 +138,8 @@ export function HomeDashboard() {
           </div>
         </Card>
 
+        <QuestCard />
+
         <Link to="/play" className="block no-underline">
           <Button
             size="xl"
@@ -137,6 +152,25 @@ export function HomeDashboard() {
         </Link>
         {doneToday ? (
           <p className="text-center text-sm text-muted">Pode encerrar. Até amanhã.</p>
+        ) : null}
+
+        {canPractice ? (
+          <Card className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-display text-lg">Treino das teimosas</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Dez acertos, sem relógio. Só as contas que travam.
+                </p>
+                <p className="mt-2 font-display tabular-nums text-muted">
+                  {practiceTop.map((t) => `${t.fact.a}×${t.fact.b}`).join(" · ")}
+                </p>
+              </div>
+              <Link to="/treino" className="no-underline">
+                <Button variant="secondary">Treinar agora</Button>
+              </Link>
+            </div>
+          </Card>
         ) : null}
 
         <div>
@@ -156,6 +190,27 @@ export function HomeDashboard() {
             bestMs={player.planetBestMs ?? []}
             onSelect={setPlanet}
           />
+        </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowMastery((v) => !v)}
+            className="flex w-full items-center justify-between rounded-md border border-line bg-surface px-4 py-3 text-left"
+            aria-expanded={showMastery}
+          >
+            <span className="font-display text-lg">Minhas tabuadas</span>
+            <ChevronDown
+              className={`size-5 text-muted transition-transform ${showMastery ? "rotate-180" : ""}`}
+              strokeWidth={2}
+            />
+          </button>
+          {showMastery ? (
+            <Card className="anim-rise mt-2">
+              <p className="mb-4 text-sm text-muted">Verde cheio = conta no automático.</p>
+              <MasteryGrid state={player} compact />
+            </Card>
+          ) : null}
         </div>
 
         <div>

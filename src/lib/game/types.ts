@@ -26,6 +26,14 @@ export type DayStat = {
   answered: number;
   correct: number;
   missions: number;
+  /** Dia coberto por um escudo de sequência (não soma na sequência, mas não a quebra). */
+  shielded?: boolean;
+  /** Acertos do dia por tabuada (chave = fact.a). */
+  tables?: Record<number, number>;
+  /** Recordes de planeta batidos neste dia. */
+  records?: number;
+  /** Missões do dia já concluídas (XP concedido uma única vez). */
+  questsDone?: string[];
 };
 
 export type MissionRecord = {
@@ -39,6 +47,7 @@ export type MissionRecord = {
   correct: number;
   wrong: number;
   passed: boolean;
+  bestCombo?: number;
 };
 
 export type ParentAlertKind = "level" | "rank" | "ship" | "prize";
@@ -53,7 +62,7 @@ export type ParentAlert = {
 };
 
 export type PlayerState = {
-  version: 2;
+  version: 3;
   childName: string;
   rankId: RankId;
   consecutiveWins: number;
@@ -78,6 +87,9 @@ export type PlayerState = {
   parentAlerts: ParentAlert[];
   notifyParents: boolean;
   prizeName: string;
+  shields: number;
+  /** Último dia (todayKey) até o qual os dias perdidos foram assentados; "" = nunca. */
+  lastSettledDay: string;
 };
 
 export type RankDef = {
@@ -94,6 +106,7 @@ export const STORAGE_KEY = "missao-tabuada-v1";
 export const PRIZE_EVERY = 10;
 export const DAILY_GOAL = 15;
 export const TARGET_CORRECT = 15;
+export const SHIELD_MAX = 2;
 export const TIMEZONE = "America/Sao_Paulo";
 
 export const EXTRA_TIME_OPTIONS = [0, 15, 30, 45, 60] as const;
@@ -115,7 +128,7 @@ export function todayKey(now = new Date()): string {
 
 export function emptyState(): PlayerState {
   return {
-    version: 2,
+    version: 3,
     childName: "",
     rankId: "cadete",
     consecutiveWins: 0,
@@ -140,6 +153,8 @@ export function emptyState(): PlayerState {
     parentAlerts: [],
     notifyParents: false,
     prizeName: "",
+    shields: 0,
+    lastSettledDay: "",
   };
 }
 

@@ -1,5 +1,11 @@
-import { firstPlanetForRank, PLANETS, shipForLevel } from "./worlds";
-import { emptyState, EXTRA_TIME_OPTIONS, type PlayerState, type RankId } from "./types";
+import { firstPlanetForRank, PLANETS, shipForLevel } from "./worlds.ts";
+import {
+  emptyState,
+  EXTRA_TIME_OPTIONS,
+  SHIELD_MAX,
+  type PlayerState,
+  type RankId,
+} from "./types.ts";
 
 export const MAX_LEVEL = 30;
 export const STAR_MAX = 3;
@@ -107,7 +113,7 @@ export function applyRunProgress(
   return {
     state: {
       ...state,
-      version: 2,
+      version: 3,
       level: leveled.level,
       xp: leveled.xp,
       furthestPlanet: furthest,
@@ -154,7 +160,7 @@ export function migrateState(raw: Partial<PlayerState> & { version?: number }): 
   const level = Math.max(1, merged.level ?? Math.max(1, missions));
   return {
     ...merged,
-    version: 2,
+    version: 3,
     level,
     xp: merged.xp ?? 0,
     selectedPlanet: selected,
@@ -168,6 +174,8 @@ export function migrateState(raw: Partial<PlayerState> & { version?: number }): 
     parentAlerts: Array.isArray(merged.parentAlerts) ? merged.parentAlerts : [],
     notifyParents: merged.notifyParents ?? false,
     prizeName: typeof merged.prizeName === "string" ? merged.prizeName.slice(0, 40) : "",
+    shields: Math.max(0, Math.min(SHIELD_MAX, Math.floor(Number(merged.shields ?? 0) || 0))),
+    lastSettledDay: typeof merged.lastSettledDay === "string" ? merged.lastSettledDay : "",
     rankId: PLANETS[furthest]?.rankId ?? merged.rankId ?? "cadete",
   };
 }

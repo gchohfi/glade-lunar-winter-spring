@@ -1,9 +1,11 @@
 import { create } from "zustand";
-import { applyMissionResult, claimPrize as claimPrizeState } from "./adaptive";
-import { setSoundEnabled } from "./audio";
-import { migrateState } from "./progress";
-import { fireParentNotify } from "./notify";
-import { firstPlanetForRank } from "./worlds";
+import { applyMissionResult, claimPrize as claimPrizeState } from "./adaptive.ts";
+import { applyPracticeResult } from "./practice.ts";
+import { setSoundEnabled } from "./audio.ts";
+import { migrateState } from "./progress.ts";
+import { settleShields } from "./shields.ts";
+import { fireParentNotify } from "./notify.ts";
+import { firstPlanetForRank } from "./worlds.ts";
 import {
   STORAGE_KEY,
   EXTRA_TIME_OPTIONS,
@@ -12,12 +14,16 @@ import {
   type PlayerState,
   type RankId,
   type Fact,
-} from "./types";
+} from "./types.ts";
 
 type MissionApplyInput = Omit<MissionRecord, "id"> & {
   factsTried: Array<{ fact: Fact; ok: boolean; ms: number }>;
   bestCombo?: number;
   planetIndex?: number;
+};
+
+type PracticeApplyInput = {
+  factsTried: Array<{ fact: Fact; ok: boolean; ms: number }>;
 };
 
 type PlayerStore = PlayerState & {
@@ -32,6 +38,7 @@ type PlayerStore = PlayerState & {
   markAlertsRead: () => void;
   finishOnboarding: (name: string) => void;
   applyMission: (input: MissionApplyInput) => ReturnType<typeof applyMissionResult>;
+  applyPractice: (input: PracticeApplyInput) => ReturnType<typeof applyPracticeResult>;
   claimPrize: () => void;
   replaceState: (state: PlayerState) => void;
   snapshot: () => PlayerState;
@@ -39,7 +46,7 @@ type PlayerStore = PlayerState & {
 
 function pickState(s: PlayerState): PlayerState {
   return migrateState({
-    version: 2,
+    version: 3,
     childName: s.childName,
     rankId: s.rankId,
     consecutiveWins: s.consecutiveWins,
@@ -64,6 +71,8 @@ function pickState(s: PlayerState): PlayerState {
     parentAlerts: s.parentAlerts,
     notifyParents: s.notifyParents,
     prizeName: s.prizeName,
+    shields: s.shields,
+    lastSettledDay: s.lastSettledDay,
   });
 }
 
@@ -154,13 +163,22 @@ export const usePlayer = create<PlayerStore>()((set, get) => ({
     }
     return result;
   },
+  applyPractice: (input) => {
+    const result = applyPracticeResult(pickState(get()), input);
+    set({ ...result.state });
+    writeLocal(result.state);
+    if (result.state.notifyParents && result.newAlerts.length > 0) {
+      fireParentNotify(result.newAlerts[0]);
+    }
+    return result;
+  },
   claimPrize: () => {
     const next = claimPrizeState(pickState(get()));
     set({ ...next });
     writeLocal(next);
   },
   replaceState: (state) => {
-    const next = migrateState(state);
+    const next = settleShields(migrateState(state));
     set({ ...next, hydrated: true });
     writeLocal(next);
   },
@@ -174,13 +192,17 @@ export function hydratePlayer(): void {
     return;
   }
   if (local) {
-    setSoundEnabled(local.sound);
-    usePlayer.setState({ ...local, hydrated: true });
+    // Assenta escudos/dias perdidos já na hidratação e GRAVA o resultado —
+    // o consumo nunca fica para uma recontagem futura.
+    const settled = settleShields(local);
+    setSoundEnabled(settled.sound);
+    usePlayer.setState({ ...settled, hydrated: true });
+    writeLocal(settled);
   } else if (!current.hydrated) {
     usePlayer.setState({ hydrated: true });
   }
 }
 
-if (typeof window !== "undefined") {
-  hydratePlayer();
-}
+// A hidratação do localStorage fica com o effect do <CloudSync> (montado no
+// __root): hidratar já no load do módulo faria o primeiro render do cliente
+// divergir do HTML do servidor (mismatch de hidratação do React).

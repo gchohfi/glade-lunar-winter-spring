@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { drawNext, pickMissionFacts, recycleMiss } from "@/lib/game/adaptive";
+import { hasPractice } from "@/lib/game/practice";
 import type { ProgressDelta } from "@/lib/game/progress";
 import { xpToNext } from "@/lib/game/progress";
+import { QUEST_XP, type Quest } from "@/lib/game/quests";
 import {
   playCorrect,
   playFail,
@@ -60,6 +62,8 @@ export function MissionPlay() {
   const [elapsed, setElapsed] = useState(0);
   const [delta, setDelta] = useState<ProgressDelta | null>(null);
   const [dailyJustDone, setDailyJustDone] = useState(false);
+  const [shieldEarned, setShieldEarned] = useState(false);
+  const [questsDone, setQuestsDone] = useState<Quest[]>([]);
 
   const queueRef = useRef<Fact[]>([]);
   const startedAtRef = useRef(0);
@@ -113,6 +117,8 @@ export function MissionPlay() {
       setPrizeReady(result.prizeReady);
       setDelta(result.progress);
       setDailyJustDone(result.dailyJustDone);
+      setShieldEarned(result.shieldEarned);
+      setQuestsDone(result.questsCompleted);
       setPhase(passed ? "won" : "lost");
       if (passed) {
         if (result.progress.leveledTo || result.progress.unlockedPlanet !== null) playPromote();
@@ -174,6 +180,8 @@ export function MissionPlay() {
     setPrizeReady(false);
     setDelta(null);
     setDailyJustDone(false);
+    setShieldEarned(false);
+    setQuestsDone([]);
     startedAtRef.current = Date.now();
     qStartRef.current = performance.now();
     setPhase("running");
@@ -365,6 +373,16 @@ export function MissionPlay() {
         {phase === "won" && delta?.isRecord ? (
           <p className="mt-1 font-display text-accent">Novo recorde de tempo!</p>
         ) : null}
+        {shieldEarned ? (
+          <p className="mt-1 max-w-sm text-sm font-medium text-accent">
+            Escudo guardado. Um dia de folga não quebra mais a sequência.
+          </p>
+        ) : null}
+        {questsDone.map((q) => (
+          <p key={q.id} className="mt-1 max-w-sm text-sm font-medium text-accent">
+            Missão do dia cumprida: {q.title}. +{QUEST_XP} XP
+          </p>
+        ))}
         {phase === "won" ? (
           <div className="mt-4 space-y-1">
             <StarRow value={delta?.starsEarned ?? 0} />
@@ -412,6 +430,16 @@ export function MissionPlay() {
           {prizeReady ? (
             <Button size="lg" className="w-full" onClick={() => navigate({ to: "/pais" })}>
               Ir ao espaço dos pais
+            </Button>
+          ) : null}
+          {phase === "lost" && hasPractice(snapshot()) ? (
+            <Button
+              variant="secondary"
+              size="lg"
+              className="w-full"
+              onClick={() => navigate({ to: "/treino" })}
+            >
+              Treinar as teimosas
             </Button>
           ) : null}
           <Button
