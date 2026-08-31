@@ -23,7 +23,17 @@ import {
 import { rankById, timeWithBoost } from "@/lib/game/ranks";
 import { usePlayer } from "@/lib/game/store";
 import { planetAt, shipForLevel } from "@/lib/game/worlds";
-import { TARGET_CORRECT, factKey, formatClock, type Fact } from "@/lib/game/types";
+import {
+  TARGET_CORRECT,
+  factAnswer,
+  factKey,
+  factOp,
+  formatAnswer,
+  formatClock,
+  guessesMatch,
+  parseGuess,
+  type Fact,
+} from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 
 type Phase = "ready" | "running" | "won" | "lost";
@@ -54,17 +64,19 @@ export function MissionPlay() {
   const [combo, setCombo] = useState(0);
   const [remaining, setRemaining] = useState(defaultLimit);
   const [runLimit, setRunLimit] = useState(defaultLimit);
-  const [fact, setFact] = useState<Fact>({ a: 3, b: 4 });
+  const [fact, setFact] = useState<Fact>({ a: 3, b: 4, op: "mul" });
   const [reveal, setReveal] = useState<number | null>(null);
   const [prizeReady, setPrizeReady] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [delta, setDelta] = useState<ProgressDelta | null>(null);
   const [dailyJustDone, setDailyJustDone] = useState(false);
+  const [qRemaining, setQRemaining] = useState(rank.questionLimitMs);
 
   const queueRef = useRef<Fact[]>([]);
   const startedAtRef = useRef(0);
   const qStartRef = useRef(0);
   const limitRef = useRef(defaultLimit);
+  const qLimitRef = useRef(rank.questionLimitMs);
   const triedRef = useRef<Array<{ fact: Fact; ok: boolean; ms: number }>>([]);
   const endedRef = useRef(false);
   const factRef = useRef(fact);
@@ -77,6 +89,7 @@ export function MissionPlay() {
   const phaseRef = useRef<Phase>(phase);
   const revealTimer = useRef<number | null>(null);
   const winningRef = useRef(false);
+  const resolvedRef = useRef(false);
 
   factRef.current = fact;
   typedRef.current = typed;
@@ -145,9 +158,51 @@ export function MissionPlay() {
     return () => cancelAnimationFrame(raf);
   }, [phase, runLimit]);
 
+  const timeoutMiss = () => {
+    if (phaseRef.current !== "running" || revealRef.current !== null || resolvedRef.current) return;
+    resolvedRef.current = true;
+    const current = factRef.current;
+    const answer = factAnswer(current);
+    record(false);
+    playWrong();
+    wrongRef.current += 1;
+    comboRef.current = 0;
+    setWrong(wrongRef.current);
+    setCombo(0);
+    setFlash("bad");
+    setFlashKey((k) => k + 1);
+    setReveal(answer);
+    if (revealTimer.current) window.clearTimeout(revealTimer.current);
+    revealTimer.current = window.setTimeout(() => goNext(false, current), 900);
+  };
+
+  const timeoutMissRef = useRef(timeoutMiss);
+  timeoutMissRef.current = timeoutMiss;
+
+  useEffect(() => {
+    if (phase !== "running") return;
+    let raf = 0;
+    const tick = () => {
+      if (revealRef.current !== null) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      const left = Math.max(0, qLimitRef.current - (performance.now() - qStartRef.current));
+      setQRemaining(left);
+      if (left <= 0) {
+        timeoutMissRef.current();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase, fact]);
+
   const begin = () => {
     unlockAudio();
     winningRef.current = false;
+    resolvedRef.current = false;
     endedRef.current = false;
     triedRef.current = [];
     comboRef.current = 0;
@@ -157,9 +212,10 @@ export function MissionPlay() {
     const r = rankById(p.rankId);
     const missionLimit = timeWithBoost(r, state.consecutiveFails, state.extraTimeSec * 1000);
     limitRef.current = missionLimit;
+    qLimitRef.current = r.questionLimitMs;
     setRunLimit(missionLimit);
     const deck = pickMissionFacts({ ...state, rankId: p.rankId });
-    const first = deck[0] ?? { a: 3, b: 4 };
+    const first = deck[0] ?? { a: 3, b: 4, op: "mul" };
     queueRef.current = deck.slice(1);
     factRef.current = first;
     correctRef.current = 0;
@@ -171,6 +227,7 @@ export function MissionPlay() {
     setCombo(0);
     setReveal(null);
     setRemaining(missionLimit);
+    setQRemaining(r.questionLimitMs);
     setPrizeReady(false);
     setDelta(null);
     setDailyJustDone(false);
@@ -186,6 +243,7 @@ export function MissionPlay() {
 
   const goNext = (ok: boolean, missed?: Fact) => {
     qStartRef.current = performance.now();
+    resolvedRef.current = false;
     setTyped("");
     typedRef.current = "";
     setReveal(null);
@@ -207,14 +265,15 @@ export function MissionPlay() {
   };
 
   const submit = (raw?: string) => {
-    if (phaseRef.current !== "running" || revealRef.current !== null) return;
+    if (phaseRef.current !== "running" || revealRef.current !== null || resolvedRef.current) return;
     const value = (raw ?? typedRef.current).trim();
     if (!value) return;
-    const guess = Number(value);
+    const guess = parseGuess(value);
     if (!Number.isFinite(guess)) return;
     const current = factRef.current;
-    const answer = current.a * current.b;
-    if (guess === answer) {
+    const answer = factAnswer(current);
+    if (guessesMatch(guess, answer)) {
+      resolvedRef.current = true;
       record(true);
       playCorrect();
       setFlash("ok");
@@ -231,6 +290,7 @@ export function MissionPlay() {
         window.setTimeout(() => goNext(true), 220);
       }
     } else {
+      resolvedRef.current = true;
       record(false);
       playWrong();
       wrongRef.current += 1;
@@ -249,10 +309,14 @@ export function MissionPlay() {
     if (phaseRef.current !== "running" || revealRef.current !== null) return;
     playTap();
     setTyped((prev) => {
-      if (prev.length >= 3) return prev;
+      if (d === ",") {
+        if (prev.includes(",") || prev.length === 0) return prev;
+      }
+      if (prev.length >= 5) return prev;
       const next = prev + d;
       typedRef.current = next;
-      if (Number(next) === factRef.current.a * factRef.current.b) {
+      const guess = parseGuess(next);
+      if (guessesMatch(guess, factAnswer(factRef.current))) {
         window.setTimeout(() => submit(next), 40);
       }
       return next;
@@ -279,6 +343,9 @@ export function MissionPlay() {
       if (e.key >= "0" && e.key <= "9") {
         e.preventDefault();
         onDigit(e.key);
+      } else if (e.key === "," || e.key === ".") {
+        e.preventDefault();
+        onDigit(",");
       } else if (e.key === "Backspace") {
         e.preventDefault();
         onBack();
@@ -293,6 +360,8 @@ export function MissionPlay() {
 
   const urgent = remaining < 10_000;
   const ratio = remaining / runLimit;
+  const qRatio = qLimitRef.current > 0 ? qRemaining / qLimitRef.current : 0;
+  const qUrgent = qRatio < 0.25;
   const elapsedLive = Math.max(0, runLimit - remaining);
   const bestHere = planetBestMs[selectedPlanet] ?? 0;
 
@@ -477,7 +546,7 @@ export function MissionPlay() {
 
           <div className="flex flex-1 flex-col items-center justify-center py-6">
             <p className="mb-4 text-sm font-medium uppercase tracking-[0.16em] text-muted">
-              Tabuada do {fact.a}
+              {factOp(fact) === "div" ? `Dividir por ${fact.b}` : `Tabuada do ${fact.a}`}
             </p>
             <p
               key={flashKey}
@@ -487,16 +556,25 @@ export function MissionPlay() {
                 flash === "bad" && "anim-shake text-bad",
               )}
             >
-              {fact.a} × {fact.b}
+              {fact.a} {factOp(fact) === "div" ? "÷" : "×"} {fact.b}
             </p>
             <div className="mt-8 flex min-h-16 items-center justify-center">
               {reveal !== null ? (
-                <p className="font-display text-3xl text-muted">= {reveal}</p>
+                <p className="font-display text-3xl text-muted">= {formatAnswer(reveal)}</p>
               ) : (
                 <p className="font-display text-5xl tabular-nums tracking-tight">
                   {typed || <span className="text-faint">?</span>}
                 </p>
               )}
+            </div>
+            <div className="mt-6 h-1 w-full max-w-40 overflow-hidden rounded-full bg-line">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-[width] duration-100 ease-linear",
+                  qUrgent ? "bg-bad" : "bg-accent/70",
+                )}
+                style={{ width: `${Math.max(0, qRatio * 100)}%` }}
+              />
             </div>
           </div>
         </section>

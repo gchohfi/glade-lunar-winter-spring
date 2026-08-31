@@ -91,6 +91,7 @@ export type RankDef = {
   factors: number[];
   timeLimitMs: number;
   secondsPerFact: number;
+  questionLimitMs: number;
 };
 
 export const STORAGE_KEY = "missao-tabuada-v1";

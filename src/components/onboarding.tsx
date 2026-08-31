@@ -23,8 +23,8 @@ export function Onboarding() {
           <h1 className="font-display text-title">Olá, cadete.</h1>
           <p className="text-muted">
             Eu sou o Nico. Um pouquinho por dia: uma missão, quinze acertos,
-            uns três minutos. Doze planetas, tabuadas do 2 ao 9, e a cada
-            dia a sequência cresce.
+            uns três minutos. Doze planetas, contas do 3 ao 13 com vezes e
+            divisão, e a cada dia a sequência cresce.
           </p>
           <Button
             size="lg"

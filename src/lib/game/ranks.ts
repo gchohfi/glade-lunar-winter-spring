@@ -1,78 +1,94 @@
 import type { RankDef, RankId } from "./types";
 import { TARGET_CORRECT } from "./types";
 
-const ALL_TABLES = [2, 3, 4, 5, 6, 7, 8, 9];
-const ALL_FACTORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const CADETE_FACTORS = [3, 4, 5, 6, 7, 8, 9, 10];
+const PILOTO_FACTORS = [3, 4, 5, 6, 7, 8, 9, 10, 11];
+const CAPITAO_FACTORS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const FULL_FACTORS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+
+function questionLimitMs(secondsPerFact: number): number {
+  return Math.round(secondsPerFact * 1000);
+}
 
 /**
  * Times scale with TARGET_CORRECT (15 acertos) via secondsPerFact.
  *
- * Every rank uses tables 2–9 × 1–12. What changes is the mix of easy/hard
- * facts and the clock — so the same 7×8 does not loop while 9×12 never appears.
+ * Factors run 3–13 (tables 1 and 2 are gone — too easy to matter). Cadete
+ * starts on 3–10; Piloto adds 11, Capitão adds 12, and Comandante onward
+ * uses the full 3–13 spread. Division is mixed into every rank via
+ * RANK_DIV_SHARE, and each rank's secondsPerFact both sets the mission
+ * clock (secondsPerFact * 15 + extra time) and the per-question countdown.
  */
 export const RANKS: RankDef[] = [
   {
     id: "cadete",
     name: "Cadete",
-    blurb: "Mistura do 2 ao 9, com mais contas fáceis e tempo de sobra.",
-    tables: ALL_TABLES,
-    factors: ALL_FACTORS,
-    timeLimitMs: 135_000,
-    secondsPerFact: 9,
+    blurb: "Mistura do 3 ao 10, com mais contas fáceis e tempo de sobra.",
+    tables: CADETE_FACTORS,
+    factors: CADETE_FACTORS,
+    timeLimitMs: Math.round(6 * TARGET_CORRECT * 1000),
+    secondsPerFact: 6,
+    questionLimitMs: questionLimitMs(6),
   },
   {
     id: "aprendiz",
     name: "Aprendiz",
-    blurb: "Ainda tem calma, mas já entram contas médias.",
-    tables: ALL_TABLES,
-    factors: ALL_FACTORS,
-    timeLimitMs: 113_000,
-    secondsPerFact: 7.5,
+    blurb: "Ainda tem calma, mas já entram contas médias e a divisão.",
+    tables: CADETE_FACTORS,
+    factors: CADETE_FACTORS,
+    timeLimitMs: Math.round(5 * TARGET_CORRECT * 1000),
+    secondsPerFact: 5,
+    questionLimitMs: questionLimitMs(5),
   },
   {
     id: "piloto",
     name: "Piloto",
-    blurb: "Quinze acertos em um minuto e meio, tabuadas misturadas.",
-    tables: ALL_TABLES,
-    factors: ALL_FACTORS,
-    timeLimitMs: 90_000,
-    secondsPerFact: 6,
+    blurb: "Quinze acertos com o relógio apertando, tabuadas e divisões misturadas.",
+    tables: PILOTO_FACTORS,
+    factors: PILOTO_FACTORS,
+    timeLimitMs: Math.round(4.5 * TARGET_CORRECT * 1000),
+    secondsPerFact: 4.5,
+    questionLimitMs: questionLimitMs(4.5),
   },
   {
     id: "capitao",
     name: "Capitão",
-    blurb: "Menos folga. Mais 6, 7, 8 e 9.",
-    tables: ALL_TABLES,
-    factors: ALL_FACTORS,
-    timeLimitMs: 75_000,
-    secondsPerFact: 5,
+    blurb: "Menos folga. Mais 7, 8, 9 e 12, e divisão em quase toda missão.",
+    tables: CAPITAO_FACTORS,
+    factors: CAPITAO_FACTORS,
+    timeLimitMs: Math.round(4 * TARGET_CORRECT * 1000),
+    secondsPerFact: 4,
+    questionLimitMs: questionLimitMs(4),
   },
   {
     id: "comandante",
     name: "Comandante",
-    blurb: "Quase só as contas duras, inclusive ×11 e ×12.",
-    tables: ALL_TABLES,
-    factors: ALL_FACTORS,
-    timeLimitMs: 68_000,
-    secondsPerFact: 4.5,
+    blurb: "Quase só as contas duras, inclusive ×11, ×12, ×13 e divisão.",
+    tables: FULL_FACTORS,
+    factors: FULL_FACTORS,
+    timeLimitMs: Math.round(3.5 * TARGET_CORRECT * 1000),
+    secondsPerFact: 3.5,
+    questionLimitMs: questionLimitMs(3.5),
   },
   {
     id: "almirante",
     name: "Almirante",
-    blurb: "Só as mais teimosas: 6 a 9 vezes 6 a 12.",
-    tables: [6, 7, 8, 9],
-    factors: [6, 7, 8, 9, 10, 11, 12],
-    timeLimitMs: 60_000,
-    secondsPerFact: 4,
+    blurb: "Só as mais teimosas: 3 a 13, com metades na divisão.",
+    tables: FULL_FACTORS,
+    factors: FULL_FACTORS,
+    timeLimitMs: Math.round(3.2 * TARGET_CORRECT * 1000),
+    secondsPerFact: 3.2,
+    questionLimitMs: questionLimitMs(3.2),
   },
   {
     id: "lenda",
     name: "Lenda",
     blurb: "Tudo misturado, quase no automático.",
-    tables: ALL_TABLES,
-    factors: ALL_FACTORS,
-    timeLimitMs: 42_000,
-    secondsPerFact: 2.8,
+    tables: FULL_FACTORS,
+    factors: FULL_FACTORS,
+    timeLimitMs: Math.round(2.6 * TARGET_CORRECT * 1000),
+    secondsPerFact: 2.6,
+    questionLimitMs: questionLimitMs(2.6),
   },
 ];
 
@@ -86,6 +102,20 @@ export const RANK_MIX: Record<RankId, FactMix> = {
   comandante: { easy: 0, medium: 5, hard: 10 },
   almirante: { easy: 0, medium: 3, hard: 12 },
   lenda: { easy: 0, medium: 3, hard: 12 },
+};
+
+/**
+ * Share of each mission's facts that come from division rather than
+ * multiplication. Grows with rank, staying inside the 22–48% band.
+ */
+export const RANK_DIV_SHARE: Record<RankId, number> = {
+  cadete: 0.22,
+  aprendiz: 0.28,
+  piloto: 0.34,
+  capitao: 0.38,
+  comandante: 0.42,
+  almirante: 0.46,
+  lenda: 0.48,
 };
 
 export function rankById(id: RankId): RankDef {
