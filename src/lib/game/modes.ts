@@ -11,7 +11,7 @@ export const MODES: ModeCard[] = [
   {
     id: "multiplication",
     title: "Tabuada",
-    blurb: "Quinze acertos contra o relógio. Do 2 ao 9, vezes 1 até 12.",
+    blurb: "Quinze acertos. Do 3 ao 13, vezes e divisão — até com vírgula.",
     available: true,
   },
   {
