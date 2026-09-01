@@ -1,8 +1,10 @@
-import { rankById, RANK_MIX } from "./ranks";
+import { rankById, RANK_DIV_SHARE, RANK_MIX, type FactMix } from "./ranks";
 import { applyRunProgress, type ProgressDelta } from "./progress";
 import { collectParentAlerts } from "./alerts";
 import {
+  factAnswer,
   factKey,
+  factOp,
   todayKey,
   type Fact,
   type FactStat,
@@ -14,25 +16,63 @@ import {
   TARGET_CORRECT,
 } from "./types";
 
-export function allFactsForRank(rankId: RankId): Fact[] {
+const DIVISORS = [2, 3, 4, 5, 6, 7, 8, 9];
+
+export function allMulFactsForRank(rankId: RankId): Fact[] {
   const rank = rankById(rankId);
   const facts: Fact[] = [];
   for (const a of rank.tables) {
     for (const b of rank.factors) {
-      facts.push({ a, b });
+      facts.push({ a, b, op: "mul" });
     }
   }
   return facts;
 }
 
+/**
+ * Division facts are built as the inverse of the rank's multiplication
+ * range: divisor is always a single digit (2–9, never 1), and the quotient
+ * comes from the same factor progression as multiplication (3–13
+ * eventually). Even divisors additionally spawn a x.5 variant (15÷2=7.5)
+ * so answers are always a whole number or exactly a half — never a
+ * repeating remainder like 3.33.
+ */
+export function allDivFactsForRank(rankId: RankId): Fact[] {
+  const rank = rankById(rankId);
+  const facts: Fact[] = [];
+  for (const divisor of DIVISORS) {
+    for (const quotient of rank.factors) {
+      const whole = divisor * quotient;
+      if (whole >= 3 && whole <= 99) {
+        facts.push({ a: whole, b: divisor, op: "div" });
+      }
+      if (divisor % 2 === 0) {
+        const half = whole + divisor / 2;
+        if (half >= 3 && half <= 99) {
+          facts.push({ a: half, b: divisor, op: "div" });
+        }
+      }
+    }
+  }
+  return facts;
+}
+
+export function allFactsForRank(rankId: RankId): Fact[] {
+  return [...allMulFactsForRank(rankId), ...allDivFactsForRank(rankId)];
+}
+
 export type FactBand = "easy" | "medium" | "hard";
 
 export function factBand(fact: Fact): FactBand {
-  if (fact.b === 1 || fact.b === 2 || fact.b === 5 || fact.b === 10) return "easy";
-  if ((fact.a === 2 || fact.a === 5) && fact.b <= 6) return "easy";
-  if ([6, 7, 8, 9].includes(fact.a) && [6, 7, 8, 9, 11, 12].includes(fact.b)) {
-    return "hard";
+  if (factOp(fact) === "div") {
+    const answer = factAnswer(fact);
+    if (!Number.isInteger(answer)) return "hard";
+    if (fact.b >= 7 || answer >= 7) return "hard";
+    if (fact.b <= 3 || answer <= 3) return "easy";
+    return "medium";
   }
+  if (fact.a === 3 || fact.b === 3) return "easy";
+  if ((fact.a >= 7 && fact.a <= 13) || (fact.b >= 7 && fact.b <= 13)) return "hard";
   return "medium";
 }
 
@@ -137,10 +177,25 @@ function arrangeVariety(facts: Fact[]): Fact[] {
   return ordered;
 }
 
-export function pickMissionFacts(state: PlayerState, count = TARGET_CORRECT + 4): Fact[] {
-  const now = Date.now();
-  const pool = allFactsForRank(state.rankId);
-  const mix = RANK_MIX[state.rankId];
+function splitByMix(total: number, mix: FactMix): FactMix {
+  if (total <= 0) return { easy: 0, medium: 0, hard: 0 };
+  const sum = mix.easy + mix.medium + mix.hard || 1;
+  const easy = Math.round((mix.easy / sum) * total);
+  const medium = Math.round((mix.medium / sum) * total);
+  const hard = Math.max(0, total - easy - medium);
+  return { easy, medium, hard };
+}
+
+function pickFromPool(
+  pool: Fact[],
+  want: FactMix,
+  state: PlayerState,
+  now: number,
+  picked: Fact[],
+  used: Set<string>,
+  commute: Set<string>,
+  tableCount: Map<number, number>,
+): void {
   const buckets: Record<FactBand, Fact[]> = { easy: [], medium: [], hard: [] };
   for (const fact of pool) {
     buckets[factBand(fact)].push(fact);
@@ -152,16 +207,47 @@ export function pickMissionFacts(state: PlayerState, count = TARGET_CORRECT + 4)
         freshnessScore(state.facts[factKey(a)], now),
     );
   }
+  takeRoundRobin(buckets.easy, want.easy, picked, used, commute, tableCount);
+  takeRoundRobin(buckets.medium, want.medium, picked, used, commute, tableCount);
+  takeRoundRobin(buckets.hard, want.hard, picked, used, commute, tableCount);
+}
+
+export function pickMissionFacts(state: PlayerState, count = TARGET_CORRECT + 4): Fact[] {
+  const now = Date.now();
+  const mulPool = allMulFactsForRank(state.rankId);
+  const divPool = allDivFactsForRank(state.rankId);
+  const mix = RANK_MIX[state.rankId];
+  const divShare = RANK_DIV_SHARE[state.rankId] ?? 0.3;
+  const divCount = Math.round(count * divShare);
+  const mulCount = count - divCount;
 
   const picked: Fact[] = [];
   const used = new Set<string>();
   const commute = new Set<string>();
   const tableCount = new Map<number, number>();
 
-  takeRoundRobin(buckets.easy, mix.easy, picked, used, commute, tableCount);
-  takeRoundRobin(buckets.medium, mix.medium, picked, used, commute, tableCount);
-  takeRoundRobin(buckets.hard, mix.hard, picked, used, commute, tableCount);
+  pickFromPool(
+    mulPool,
+    splitByMix(mulCount, mix),
+    state,
+    now,
+    picked,
+    used,
+    commute,
+    tableCount,
+  );
+  pickFromPool(
+    divPool,
+    splitByMix(divCount, mix),
+    state,
+    now,
+    picked,
+    used,
+    commute,
+    tableCount,
+  );
 
+  const pool = [...mulPool, ...divPool];
   const leftovers = shuffle(pool);
   takeRoundRobin(leftovers, count - picked.length, picked, used, commute, tableCount, 3);
 
@@ -187,7 +273,8 @@ export function pickMissionFacts(state: PlayerState, count = TARGET_CORRECT + 4)
 
 export function drawNext(queue: Fact[], last?: Fact): { fact: Fact; queue: Fact[] } {
   if (queue.length === 0) {
-    const fallback = last && last.a === 2 && last.b === 3 ? { a: 4, b: 7 } : { a: 2, b: 3 };
+    const fallback: Fact =
+      last && last.a === 3 && last.b === 4 ? { a: 4, b: 5, op: "mul" } : { a: 3, b: 4, op: "mul" };
     return { fact: fallback, queue: [] };
   }
   let idx = 0;
@@ -361,15 +448,22 @@ export function weakestFacts(
 ): Array<{ fact: Fact; stat: FactStat; accuracy: number; avgMs: number }> {
   const rows = Object.entries(state.facts)
     .map(([key, stat]) => {
-      const [a, b] = key.split("x").map(Number);
+      const match = key.match(/^(\d+)([xd])(\d+)$/);
+      if (!match) return null;
+      const [, aStr, opChar, bStr] = match;
+      const fact: Fact = {
+        a: Number(aStr),
+        b: Number(bStr),
+        op: opChar === "d" ? "div" : "mul",
+      };
       return {
-        fact: { a, b },
+        fact,
         stat,
         accuracy: stat.attempts ? stat.correct / stat.attempts : 0,
         avgMs: stat.attempts ? stat.totalMs / stat.attempts : 0,
       };
     })
-    .filter((row) => row.stat.attempts >= 2)
+    .filter((row): row is NonNullable<typeof row> => row !== null && row.stat.attempts >= 2)
     .sort((a, b) => a.accuracy - b.accuracy || b.avgMs - a.avgMs);
   return rows.slice(0, limit);
 }

@@ -22,6 +22,8 @@ import {
   DAILY_GOAL,
   EXTRA_TIME_OPTIONS,
   PRIZE_EVERY,
+  factKey,
+  factOp,
   formatClock,
   todayKey,
   type RankId,
@@ -111,8 +113,9 @@ export function ParentPanel() {
           <h1 className="mt-1 font-display text-title">Progresso do cadete</h1>
           <p className="mt-2 max-w-xl text-muted">
             Um menino de 10 anos costuma levar cerca de 3 segundos por conta
-            quando a tabuada já está automática. Começamos com 9 segundos e
-            apertamos o relógio conforme ele acerta missões seguidas.
+            quando a tabuada já está automática. Cada patente ajusta o
+            relógio conforme ele acerta missões seguidas, com multiplicação
+            e divisão misturadas, do 3 ao 13.
           </p>
         </div>
 
@@ -370,11 +373,11 @@ export function ParentPanel() {
             <ul className="mt-3 divide-y divide-line">
               {weak.map((row) => (
                 <li
-                  key={`${row.fact.a}x${row.fact.b}`}
+                  key={factKey(row.fact)}
                   className="flex items-center justify-between py-2.5"
                 >
                   <span className="font-display text-lg tabular-nums">
-                    {row.fact.a} × {row.fact.b}
+                    {row.fact.a} {factOp(row.fact) === "div" ? "÷" : "×"} {row.fact.b}
                   </span>
                   <span className="text-sm tabular-nums text-muted">
                     {Math.round(row.accuracy * 100)}% · {Math.round(row.avgMs / 100) / 10}s
