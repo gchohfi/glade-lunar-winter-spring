@@ -3,9 +3,14 @@ import { emptyState, EXTRA_TIME_OPTIONS, type PlayerState, type RankId } from ".
 
 export const MAX_LEVEL = 30;
 export const STAR_MAX = 3;
+export const EXTRA_MISSION_XP = 1 / 3;
 
 export function xpToNext(level: number): number {
   return 60 + Math.max(1, level) * 20;
+}
+
+export function xpRemaining(level: number, xp: number): number {
+  return Math.max(0, xpToNext(level) - Math.max(0, xp));
 }
 
 export function starsForMission(
@@ -27,12 +32,15 @@ export function xpForMission(input: {
   bestCombo: number;
   elapsedMs: number;
   timeLimitMs: number;
+  extraMission?: boolean;
 }): number {
   const combo = Math.max(0, Math.min(10, input.bestCombo));
   if (!input.passed) return 8 + input.correct * 4;
   const timeLeft = Math.max(0, 1 - input.elapsedMs / Math.max(1, input.timeLimitMs));
   const timeBonus = Math.round(timeLeft * 28);
-  return 48 + input.correct * 4 + combo * 4 + Math.max(0, 8 - input.wrong) * 3 + timeBonus;
+  const full = 48 + input.correct * 4 + combo * 4 + Math.max(0, 8 - input.wrong) * 3 + timeBonus;
+  if (input.extraMission) return Math.max(1, Math.round(full * EXTRA_MISSION_XP));
+  return full;
 }
 
 export function applyXp(
@@ -59,6 +67,7 @@ export type ProgressDelta = {
   newShipName: string | null;
   leveledTo: number | null;
   isRecord: boolean;
+  xpScaled: boolean;
 };
 
 export function applyRunProgress(
@@ -71,6 +80,7 @@ export function applyRunProgress(
     elapsedMs: number;
     timeLimitMs: number;
     planetIndex: number;
+    extraMission?: boolean;
   },
 ): { state: PlayerState; delta: ProgressDelta } {
   const planetIndex = Math.max(0, Math.min(PLANETS.length - 1, input.planetIndex));
@@ -101,7 +111,7 @@ export function applyRunProgress(
   }
 
   const prevShip = shipForLevel(state.level);
-  const nextShip = shipForLevel(leveled.level);
+  const next = shipForLevel(leveled.level);
   const rankId = PLANETS[furthest]?.rankId ?? state.rankId;
 
   return {
@@ -122,9 +132,10 @@ export function applyRunProgress(
       starsEarned,
       levelsGained: leveled.levelsGained,
       unlockedPlanet,
-      newShipName: nextShip.id !== prevShip.id ? nextShip.name : null,
+      newShipName: next.id !== prevShip.id ? next.name : null,
       leveledTo: leveled.levelsGained > 0 ? leveled.level : null,
       isRecord,
+      xpScaled: Boolean(input.extraMission && input.passed),
     },
   };
 }

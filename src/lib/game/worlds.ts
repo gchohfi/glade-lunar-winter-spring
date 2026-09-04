@@ -26,7 +26,7 @@ export const PLANETS: Planet[] = [
   {
     id: "vale",
     name: "Vale Verde",
-    blurb: "Entram contas médias. Olho no relógio.",
+    blurb: "Entram contas médias e as primeiras divisões.",
     rankId: "aprendiz",
     art: "/game/planet-vale.jpg",
   },
@@ -68,7 +68,7 @@ export const PLANETS: Planet[] = [
   {
     id: "farol",
     name: "Farol Onze",
-    blurb: "Comandante. ×11 e ×12 entram na rota.",
+    blurb: "Comandante. ×11, ×12 e ×13 entram na rota.",
     rankId: "comandante",
     art: "/game/planet-estacao.jpg",
   },
@@ -82,7 +82,7 @@ export const PLANETS: Planet[] = [
   {
     id: "fossa",
     name: "Fossa Leste",
-    blurb: "Almirante. 6 a 9 vezes 6 a 12.",
+    blurb: "Almirante. 6 a 9 e 11 a 13.",
     rankId: "almirante",
     art: "/game/planet-abismo.jpg",
   },
@@ -106,6 +106,10 @@ export const SHIPS: Ship[] = [
   { id: "cadete", name: "Foguete de Papel", minLevel: 1, art: "/game/ship-cadete.jpg" },
   { id: "piloto", name: "Asa Teal", minLevel: 5, art: "/game/ship-piloto.jpg" },
   { id: "lenda", name: "Nau-Coroa", minLevel: 10, art: "/game/ship-lenda.jpg" },
+  { id: "cometa", name: "Asa-Cometa", minLevel: 15, art: "/game/planet-cometa.jpg" },
+  { id: "farol", name: "Farol Voador", minLevel: 20, art: "/game/planet-estacao.jpg" },
+  { id: "fossa", name: "Couraça Leste", minLevel: 25, art: "/game/planet-abismo.jpg" },
+  { id: "coroa", name: "Nau-Lenda", minLevel: 30, art: "/game/planet-coroa.jpg" },
 ];
 
 export function planetAt(index: number): Planet {
@@ -124,4 +128,8 @@ export function shipForLevel(level: number): Ship {
     if (level >= ship.minLevel) chosen = ship;
   }
   return chosen;
+}
+
+export function nextShip(level: number): Ship | null {
+  return SHIPS.find((s) => s.minLevel > level) ?? null;
 }
