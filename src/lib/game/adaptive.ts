@@ -3,6 +3,7 @@ import { applyRunProgress, type ProgressDelta } from "./progress";
 import { collectParentAlerts } from "./alerts";
 import {
   factKey,
+  factOp,
   todayKey,
   type Fact,
   type FactStat,
@@ -14,13 +15,40 @@ import {
   TARGET_CORRECT,
 } from "./types";
 
+const DIVISORS = [2, 3, 4, 5, 6, 7, 8, 9];
+
+function pushUnique(facts: Fact[], seen: Set<string>, fact: Fact): void {
+  const key = factKey(fact);
+  if (seen.has(key)) return;
+  seen.add(key);
+  facts.push(fact);
+}
+
 export function allFactsForRank(rankId: RankId): Fact[] {
   const rank = rankById(rankId);
   const facts: Fact[] = [];
+  const seen = new Set<string>();
   for (const a of rank.tables) {
     for (const b of rank.factors) {
-      facts.push({ a, b });
+      if (a < 3 || b < 3) continue;
+      pushUnique(facts, seen, { a, b, op: "mul" });
     }
+  }
+  for (const table of rank.tables) {
+    for (const factor of rank.factors) {
+      const product = table * factor;
+      if (product < 4 || product > 99) continue;
+      if (DIVISORS.includes(table)) {
+        pushUnique(facts, seen, { a: product, b: table, op: "div" });
+      }
+      if (DIVISORS.includes(factor)) {
+        pushUnique(facts, seen, { a: product, b: factor, op: "div" });
+      }
+    }
+  }
+  for (let n = 11; n <= 99; n += 2) {
+    if (rankId === "cadete" && n > 31) continue;
+    pushUnique(facts, seen, { a: n, b: 2, op: "div" });
   }
   return facts;
 }
@@ -28,15 +56,24 @@ export function allFactsForRank(rankId: RankId): Fact[] {
 export type FactBand = "easy" | "medium" | "hard";
 
 export function factBand(fact: Fact): FactBand {
-  if (fact.b === 1 || fact.b === 2 || fact.b === 5 || fact.b === 10) return "easy";
-  if ((fact.a === 2 || fact.a === 5) && fact.b <= 6) return "easy";
-  if ([6, 7, 8, 9].includes(fact.a) && [6, 7, 8, 9, 11, 12].includes(fact.b)) {
+  if (factOp(fact) === "div") {
+    if (!Number.isInteger(fact.a / fact.b)) return "hard";
+    if (fact.b === 5 || fact.a <= 24) return "easy";
+    if ([6, 7, 8, 9].includes(fact.b) && fact.a >= 36) return "hard";
+    return "medium";
+  }
+  if (fact.a === 5 || fact.b === 5 || fact.a === 10 || fact.b === 10) return "easy";
+  if ((fact.a === 3 || fact.b === 3 || fact.a === 4 || fact.b === 4) && fact.a <= 10 && fact.b <= 10) {
+    return "easy";
+  }
+  if ([6, 7, 8, 9, 12, 13].includes(fact.a) && [6, 7, 8, 9, 12, 13].includes(fact.b)) {
     return "hard";
   }
   return "medium";
 }
 
 function commuteKey(fact: Fact): string {
+  if (factOp(fact) === "div") return `d:${fact.a}/${fact.b}`;
   return `${Math.min(fact.a, fact.b)}:${Math.max(fact.a, fact.b)}`;
 }
 
@@ -64,9 +101,10 @@ function freshnessScore(stat: FactStat | undefined, now: number): number {
 function groupByTable(facts: Fact[]): Map<number, Fact[]> {
   const map = new Map<number, Fact[]>();
   for (const fact of facts) {
-    const list = map.get(fact.a) ?? [];
+    const table = factOp(fact) === "div" ? fact.b : fact.a;
+    const list = map.get(table) ?? [];
     list.push(fact);
-    map.set(fact.a, list);
+    map.set(table, list);
   }
   return map;
 }
@@ -97,7 +135,8 @@ function takeRoundRobin(
       const list = grouped.get(table);
       if (!list?.length) continue;
       const last = picked[picked.length - 1];
-      if (last && last.a === table) continue;
+      const lastTable = last ? (factOp(last) === "div" ? last.b : last.a) : null;
+      if (lastTable === table) continue;
       const fact = list.shift();
       if (!fact) continue;
       picked.push(fact);
@@ -123,7 +162,8 @@ function arrangeVariety(facts: Fact[]): Fact[] {
       const list = grouped.get(table);
       if (!list?.length) continue;
       const last = ordered[ordered.length - 1];
-      if (last && last.a === table) {
+      const lastTable = last ? (factOp(last) === "div" ? last.b : last.a) : null;
+      if (lastTable === table) {
         const other = tables.some(
           (alt) => alt !== table && (grouped.get(alt)?.length ?? 0) > 0,
         );
@@ -187,8 +227,7 @@ export function pickMissionFacts(state: PlayerState, count = TARGET_CORRECT + 4)
 
 export function drawNext(queue: Fact[], last?: Fact): { fact: Fact; queue: Fact[] } {
   if (queue.length === 0) {
-    const fallback = last && last.a === 2 && last.b === 3 ? { a: 4, b: 7 } : { a: 2, b: 3 };
-    return { fact: fallback, queue: [] };
+    return { fact: { a: 4, b: 7, op: "mul" }, queue: [] };
   }
   let idx = 0;
   if (last) {
@@ -264,6 +303,7 @@ export function applyMissionResult(
   }
 
   const passed = record.passed;
+  const extraMission = passed && dayPrev.missions >= 1;
   const consecutiveWins = passed ? state.consecutiveWins + 1 : 0;
   const consecutiveFails = passed ? 0 : state.consecutiveFails + 1;
   const rankId = record.rankId;
@@ -322,6 +362,7 @@ export function applyMissionResult(
     elapsedMs: record.elapsedMs,
     timeLimitMs: record.timeLimitMs,
     planetIndex: record.planetIndex ?? state.selectedPlanet,
+    extraMission,
   });
 
   const prizeJustReady = prizeReady && state.prizeCycle < PRIZE_EVERY;
@@ -361,15 +402,16 @@ export function weakestFacts(
 ): Array<{ fact: Fact; stat: FactStat; accuracy: number; avgMs: number }> {
   const rows = Object.entries(state.facts)
     .map(([key, stat]) => {
-      const [a, b] = key.split("x").map(Number);
+      const div = key.includes("d");
+      const [a, b] = key.split(div ? "d" : "x").map(Number);
       return {
-        fact: { a, b },
+        fact: { a, b, op: div ? ("div" as const) : ("mul" as const) },
         stat,
         accuracy: stat.attempts ? stat.correct / stat.attempts : 0,
         avgMs: stat.attempts ? stat.totalMs / stat.attempts : 0,
       };
     })
-    .filter((row) => row.stat.attempts >= 2)
+    .filter((row) => row.stat.attempts >= 2 && Number.isFinite(row.fact.a) && Number.isFinite(row.fact.b))
     .sort((a, b) => a.accuracy - b.accuracy || b.avgMs - a.avgMs);
   return rows.slice(0, limit);
 }
