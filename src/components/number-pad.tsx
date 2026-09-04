@@ -1,7 +1,7 @@
 import { Delete, CornerDownLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "back", "0", "ok"] as const;
+const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "back"] as const;
 
 export function NumberPad({
   onDigit,
@@ -17,7 +17,7 @@ export function NumberPad({
   return (
     <div className="grid grid-cols-3 gap-2">
       {KEYS.map((key) => {
-        const isAction = key === "back" || key === "ok";
+        const isAction = key === "back";
         return (
           <button
             key={key}
@@ -26,7 +26,6 @@ export function NumberPad({
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => {
               if (key === "back") onBack();
-              else if (key === "ok") onSubmit();
               else onDigit(key);
             }}
             className={cn(
@@ -34,20 +33,24 @@ export function NumberPad({
               isAction
                 ? "border-line bg-wash text-ink"
                 : "border-line bg-surface text-ink hover:bg-wash",
-              key === "ok" && "bg-accent text-accent-fg hover:bg-accent",
             )}
-            aria-label={key === "back" ? "Apagar" : key === "ok" ? "Confirmar" : key}
+            aria-label={key === "back" ? "Apagar" : key === "," ? "Vírgula" : key}
           >
-            {key === "back" ? (
-              <Delete className="size-6" strokeWidth={2} />
-            ) : key === "ok" ? (
-              <CornerDownLeft className="size-6" strokeWidth={2} />
-            ) : (
-              key
-            )}
+            {key === "back" ? <Delete className="size-6" strokeWidth={2} /> : key}
           </button>
         );
       })}
+      <button
+        type="button"
+        disabled={disabled}
+        onPointerDown={(e) => e.preventDefault()}
+        onClick={onSubmit}
+        className="col-span-3 flex h-14 items-center justify-center gap-2 rounded-md border border-accent bg-accent font-display text-lg text-accent-fg touch-manipulation active:not-disabled:scale-[0.98] disabled:opacity-40"
+        aria-label="Confirmar"
+      >
+        <CornerDownLeft className="size-5" strokeWidth={2} />
+        Confirmar
+      </button>
     </div>
   );
 }
