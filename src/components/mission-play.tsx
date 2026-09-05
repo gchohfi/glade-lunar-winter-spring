@@ -483,33 +483,30 @@ export function MissionPlay() {
             />
           </div>
 
-          <div className="flex flex-1 flex-col items-center justify-center py-3">
+          <div className="mission-question flex flex-col items-center justify-center py-3">
             <p className="mb-2 text-sm font-medium uppercase tracking-[0.16em] text-muted">
               {factOp(fact) === "div" ? "Divisão" : "Multiplicação"} · resolva a jogada
             </p>
-            <p
-              key={flashKey}
-              className={cn(
-                "font-display text-display tracking-tight tabular-nums",
-                flash === "ok" && "anim-pop text-ok",
-                flash === "bad" && "anim-shake text-bad",
-              )}
-            >
-              {fact.a} {factOp(fact) === "div" ? "÷" : "×"} {fact.b}
-            </p>
-            <div className="mt-3 flex min-h-14 items-center justify-center">
-              {reveal !== null ? (
-                <p className="font-display text-3xl text-muted">= {formatAnswer(reveal)}</p>
-              ) : (
-                <p className="font-display text-5xl tabular-nums tracking-tight">
-                  {typed || <span className="text-faint">?</span>}
-                </p>
-              )}
+            <div className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 font-display tabular-nums tracking-tight">
+              <p
+                key={flashKey}
+                data-equation
+                className={cn(
+                  "mission-equation text-ink whitespace-nowrap",
+                  flash === "ok" && "anim-pop text-ok",
+                  flash === "bad" && "anim-shake text-bad",
+                )}
+              >
+                {fact.a} {factOp(fact) === "div" ? "÷" : "×"} {fact.b}
+              </p>
+              <p data-answer className="text-4xl leading-tight text-ink whitespace-nowrap sm:text-5xl">
+                = {reveal !== null ? formatAnswer(reveal) : typed || "?"}
+              </p>
             </div>
           </div>
         </section>
 
-        <section className="safe-bottom flex flex-col justify-end bg-surface/80 px-4 pt-4 sm:px-6 lg:border-l lg:border-line">
+        <section className="mission-keyboard safe-bottom flex flex-col justify-end bg-surface/80 px-4 pt-4 sm:px-6 lg:border-l lg:border-line">
           <NumberPad
             onDigit={onDigit}
             onBack={onBack}
