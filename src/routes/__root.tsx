@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Jogo de tabuada: 12 planetas, níveis, naves e um prêmio a cada dez missões.",
+          "Futebol com Nico: 15 acertos, 5 gols e um treino por dia. Doze etapas e prêmios combinados em família.",
       },
       { name: "theme-color", content: "#F4EFE6" },
     ],

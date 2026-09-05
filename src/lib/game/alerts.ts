@@ -1,11 +1,6 @@
 import { rankById } from "./ranks";
 import { PLANETS, shipForLevel } from "./worlds";
-import {
-  displayName,
-  PRIZE_EVERY,
-  type ParentAlert,
-  type PlayerState,
-} from "./types";
+import { displayName, PRIZE_EVERY, type ParentAlert, type PlayerState } from "./types";
 
 export const IMPORTANT_LEVELS = [5, 10, 15, 20, 25, 30] as const;
 
@@ -39,8 +34,8 @@ export function collectParentAlerts(input: {
         kind: "level",
         title: `${name} chegou ao nível ${mark}`,
         body: shipUnlock
-          ? `Nível importante. Nova nave: ${ship.name}.`
-          : "Nível importante na Rota das Estrelas.",
+          ? `Nível importante. Nova conquista: ${ship.name}.`
+          : "Nível importante na jornada do futebol.",
         read: false,
       });
       levelNoted = true;
@@ -57,7 +52,7 @@ export function collectParentAlerts(input: {
       at,
       kind: "rank",
       title: `${name} é ${rank.name}`,
-      body: `Nova patente. Próximo planeta: ${planet.name}.`,
+      body: `Nova categoria. Próxima etapa: ${planet.name}.`,
       read: false,
     });
   }
@@ -69,8 +64,8 @@ export function collectParentAlerts(input: {
       id: alertId("ship", nextShip.id),
       at,
       kind: "ship",
-      title: `Nova nave: ${nextShip.name}`,
-      body: `${name} destrancou uma nave no nível ${nextLevel}.`,
+      title: `Nova conquista: ${nextShip.name}`,
+      body: `${name} desbloqueou uma conquista no nível ${nextLevel}.`,
       read: false,
     });
   }
@@ -80,11 +75,24 @@ export function collectParentAlerts(input: {
       id: alertId("prize", String(input.next.prizesEarned)),
       at,
       kind: "prize",
-      title: `${name} completou ${PRIZE_EVERY} missões`,
+      title: `${name} completou ${PRIZE_EVERY} partidas`,
       body: "Hora de entregar o que combinaram.",
       read: false,
     });
   }
 
   return out;
+}
+
+// Translate only system-generated legacy messages for display; never mutate history.
+export function footballAlertText(alert: ParentAlert): { title: string; body: string } {
+  const oldTheme =
+    /Nova nave:|Nova patente\.|Próximo planeta:|Rota das Estrelas|destrancou uma nave/.test(
+      alert.title + " " + alert.body,
+    );
+  if (!oldTheme) return { title: alert.title, body: alert.body };
+  return {
+    title: alert.kind === "rank" ? "Nova categoria conquistada" : "Nova conquista registrada",
+    body: "Este marco da sua trajetória continua salvo no campeonato com Nico.",
+  };
 }

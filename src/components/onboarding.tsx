@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Rocket } from "lucide-react";
+import { Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Mascot } from "@/components/mascot";
+import { MascotScene } from "@/components/mascot-scene";
 import { persistCloud } from "@/components/cloud-sync";
 import { usePlayer } from "@/lib/game/store";
 import { unlockAudio } from "@/lib/game/audio";
@@ -13,18 +13,25 @@ export function Onboarding() {
   const [name, setName] = useState("");
 
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center text-center">
-      <Mascot className="h-52 w-52" />
+    <div className="nico-onboarding mx-auto flex max-w-xl flex-col items-center text-center">
+      <p className="font-display text-lg">Missão Tabuada</p>
+      <MascotScene
+        mood={step === 0 ? "idle" : "guide"}
+        className="nico-scene-onboarding"
+        priority
+      />
       {step === 0 ? (
         <div className="anim-rise mt-2 space-y-4">
           <p className="text-sm font-medium uppercase tracking-[0.14em] text-muted">
-            Academia de voo
+            Futebol com Nico
           </p>
-          <h1 className="font-display text-title">Olá, cadete.</h1>
+          <h1 className="font-display text-title">Bora jogar no mesmo time?</h1>
           <p className="text-muted">
-            Eu sou o Nico. Um pouquinho por dia: uma missão, quinze acertos,
-            uns três minutos. Doze planetas, tabuadas do 2 ao 9, e a cada
-            dia a sequência cresce.
+            Eu sou o Nico! Você resolve as contas, a bola avança. Dois passes e um chute fazem um
+            gol. São quinze acertos, cinco gols e um treino por dia, com tabuadas do 3 ao 13.
+          </p>
+          <p className="text-xs text-muted">
+            Sem ranking público, anúncios ou chat. A conta é administrada por um adulto.
           </p>
           <Button
             size="lg"
@@ -34,7 +41,7 @@ export function Onboarding() {
               setStep(1);
             }}
           >
-            Quero entrar na missão
+            Quero entrar no time
           </Button>
         </div>
       ) : (
@@ -43,23 +50,25 @@ export function Onboarding() {
           onSubmit={(e) => {
             e.preventDefault();
             unlockAudio();
-            finish(name || "Cadete");
+            finish(name || "Jogador");
             persistCloud();
           }}
         >
           <h1 className="font-display text-title">Como te chamamos?</h1>
-          <p className="text-muted">Pode ser só o primeiro nome.</p>
+          <p className="text-muted">
+            Pode ser só o primeiro nome. Quero saber quem vai jogar comigo.
+          </p>
           <Input
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Seu nome"
             maxLength={24}
-            aria-label="Nome do cadete"
+            aria-label="Nome do jogador"
           />
           <Button size="lg" className="w-full" type="submit">
-            <Rocket className="size-5" strokeWidth={2} />
-            Começar
+            <Flag className="size-5" strokeWidth={2} />
+            Entrar em campo
           </Button>
         </form>
       )}

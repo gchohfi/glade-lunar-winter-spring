@@ -1,42 +1,56 @@
-import { TARGET_CORRECT } from "@/lib/game/types";
+import { Mascot } from "@/components/mascot";
+import { footballState, GOALS_PER_MATCH, type PlayFeedback } from "@/lib/game/football";
 
-export function FlightTrack({
+export function FootballPitch({
   correct,
   combo,
-  shipArt,
-  planetArt,
+  feedback,
 }: {
   correct: number;
   combo: number;
-  shipArt: string;
-  planetArt: string;
+  feedback: PlayFeedback;
 }) {
-  const pct = Math.min(1, correct / TARGET_CORRECT);
+  const play = footballState(correct, feedback);
   return (
-    <div className="relative mt-4 h-14">
-      <div className="absolute inset-x-12 top-7 h-1 rounded-full bg-line" />
-      <div
-        className="absolute top-7 left-12 h-1 rounded-full bg-accent transition-[width] duration-200"
-        style={{ width: `calc((100% - 6rem) * ${pct})` }}
-      />
-      <img
-        src={shipArt}
-        alt=""
-        className="pointer-events-none absolute top-1 h-11 w-11 -translate-x-1/2 rounded-full bg-bg object-cover shadow-soft transition-[left] duration-300"
-        style={{ left: `calc(3rem + (100% - 6rem) * ${pct})` }}
-        draggable={false}
-      />
-      <img
-        src={planetArt}
-        alt=""
-        className="pointer-events-none absolute right-0 top-0.5 h-12 w-12 rounded-full object-cover shadow-soft"
-        draggable={false}
-      />
-      {combo >= 2 ? (
-        <p className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full border border-accent/20 bg-wash px-2 py-0.5 font-display text-xs text-accent">
-          Combo ×{combo}
+    <div className="football-play" data-football-play>
+      <div className="mt-3 flex items-center justify-between gap-2 text-sm">
+        <p className="font-display text-lg" data-score>
+          Gols {play.goals}/{GOALS_PER_MATCH}
         </p>
-      ) : null}
+        <p className="text-muted">{play.goalJustScored ? "Gol!" : play.nextPlay}</p>
+        {combo >= 3 ? <span className="text-accent">{combo} seguidos</span> : null}
+      </div>
+      <div className="football-pitch" data-goal={play.goalJustScored}>
+        <div className="pitch-boundary" aria-hidden="true" />
+        <div className="pitch-center" aria-hidden="true" />
+        <div className="pitch-area" aria-hidden="true" />
+        <div className="pitch-goal" aria-hidden="true" />
+        <Mascot
+          mood={feedback === "bad" ? "try" : feedback === "ok" ? "win" : "guide"}
+          className="pitch-nico"
+        />
+        <span
+          className="football-ball pitch-ball"
+          style={{ left: play.ballPercent + "%" }}
+          aria-hidden="true"
+        >
+          ⚽
+        </span>
+        {play.goalJustScored ? (
+          <span className="pitch-goal-word" aria-hidden="true">
+            GOOOL!
+          </span>
+        ) : null}
+      </div>
+      <p
+        className="nico-pitch-speech text-sm text-muted"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <span className="font-medium text-accent">Nico: </span>
+        {play.line}
+      </p>
     </div>
   );
 }

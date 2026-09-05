@@ -16,7 +16,7 @@ function Login() {
         </p>
         <h1 className="mt-2 font-display text-title">Entrar para salvar o progresso</h1>
         <p className="mt-3 text-muted">
-          Pais entram aqui. Depois o cadete joga no iPad, no computador ou no
+          Pais entram aqui. Depois a criança joga no iPad, no computador ou no
           celular — a mesma conta, o mesmo treino.
         </p>
         <Card className="mt-8 space-y-3 p-5 text-left">

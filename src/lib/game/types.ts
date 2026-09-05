@@ -173,5 +173,5 @@ export function emptyState(): PlayerState {
 
 export function displayName(state: PlayerState): string {
   const name = state.childName.trim();
-  return name.length > 0 ? name : "Cadete";
+  return name.length > 0 ? name : "Jogador";
 }

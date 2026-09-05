@@ -11,7 +11,7 @@ const ALL_FACTORS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 export const RANKS: RankDef[] = [
   {
     id: "cadete",
-    name: "Cadete",
+    name: "Base",
     blurb: "Do 3 ao 13, com mais contas amigas e tempo de sobra.",
     tables: ALL_TABLES,
     factors: ALL_FACTORS,
@@ -20,7 +20,7 @@ export const RANKS: RankDef[] = [
   },
   {
     id: "aprendiz",
-    name: "Aprendiz",
+    name: "Promessa",
     blurb: "Ainda tem calma. Entram divisões e meios.",
     tables: ALL_TABLES,
     factors: ALL_FACTORS,
@@ -29,7 +29,7 @@ export const RANKS: RankDef[] = [
   },
   {
     id: "piloto",
-    name: "Piloto",
+    name: "Titular",
     blurb: "Quinze acertos em um minuto e meio. Vezes e dividido.",
     tables: ALL_TABLES,
     factors: ALL_FACTORS,
@@ -38,7 +38,7 @@ export const RANKS: RankDef[] = [
   },
   {
     id: "capitao",
-    name: "Capitão",
+    name: "Camisa 10",
     blurb: "Menos folga. Mais 6, 7, 8, 9 e 13.",
     tables: ALL_TABLES,
     factors: ALL_FACTORS,
@@ -47,7 +47,7 @@ export const RANKS: RankDef[] = [
   },
   {
     id: "comandante",
-    name: "Comandante",
+    name: "Capitão",
     blurb: "Quase só as duras, inclusive ×11, ×12 e ×13.",
     tables: ALL_TABLES,
     factors: ALL_FACTORS,
@@ -56,7 +56,7 @@ export const RANKS: RankDef[] = [
   },
   {
     id: "almirante",
-    name: "Almirante",
+    name: "Craque",
     blurb: "Só as teimosas: 6 a 9 e 11 a 13.",
     tables: [6, 7, 8, 9, 11, 12, 13],
     factors: [6, 7, 8, 9, 11, 12, 13],

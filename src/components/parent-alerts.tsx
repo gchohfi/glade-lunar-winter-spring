@@ -3,7 +3,7 @@ import { Bell, BellOff } from "lucide-react";
 import { persistCloud } from "@/components/cloud-sync";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { unreadAlerts } from "@/lib/game/alerts";
+import { unreadAlerts, footballAlertText } from "@/lib/game/alerts";
 import { enableDeviceNotify, notificationPermission } from "@/lib/game/notify";
 import { usePlayer } from "@/lib/game/store";
 import { TIMEZONE } from "@/lib/game/types";
@@ -45,8 +45,8 @@ export function ParentAlerts() {
         <div>
           <h2 className="font-display text-lg">Avisos de nível</h2>
           <p className="mt-1 text-sm text-muted">
-            Você fica sabendo nos níveis 5, 10, 15, 20, 25 e 30, em cada patente
-            nova e quando chega a hora do prêmio.
+            Você fica sabendo nos níveis 5, 10, 15, 20, 25 e 30, em cada categoria nova e quando
+            chega a hora do prêmio.
           </p>
         </div>
         {player.notifyParents && perm === "granted" ? (
@@ -58,13 +58,13 @@ export function ParentAlerts() {
 
       {perm === "granted" && player.notifyParents ? (
         <p className="mt-3 text-sm text-muted">
-          Avisos ligados neste aparelho. No celular, entre com a mesma conta e
-          deixe esta página aberta — ou olhe aqui quando puder.
+          Avisos ligados neste aparelho. No celular, entre com a mesma conta e deixe esta página
+          aberta — ou olhe aqui quando puder.
         </p>
       ) : perm === "denied" ? (
         <p className="mt-3 text-sm text-muted">
-          O aparelho bloqueou pop-ups. Os avisos continuam nesta página. Para
-          o sino do sistema, libere notificações nas Ajustes do Safari.
+          O aparelho bloqueou pop-ups. Os avisos continuam nesta página. Para o sino do sistema,
+          libere notificações nas Ajustes do Safari.
         </p>
       ) : perm === "unsupported" ? (
         <p className="mt-3 text-sm text-muted">
@@ -86,8 +86,8 @@ export function ParentAlerts() {
         <div className="mt-4 space-y-3">
           {unread.slice(0, 6).map((alert) => (
             <div key={alert.id} className="rounded-md border border-accent/20 bg-surface p-3">
-              <p className="font-display">{alert.title}</p>
-              <p className="mt-1 text-sm text-muted">{alert.body}</p>
+              <p className="font-display">{footballAlertText(alert).title}</p>
+              <p className="mt-1 text-sm text-muted">{footballAlertText(alert).body}</p>
               <p className="mt-1 text-xs text-faint">{whenLabel(alert.at)}</p>
             </div>
           ))}
