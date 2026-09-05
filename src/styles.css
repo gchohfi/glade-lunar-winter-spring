@@ -4,15 +4,15 @@
 @theme {
   --color-bg: #f4efe6;
   --color-surface: #fffcf7;
-  --color-ink: #1b2430;
+  --color-ink: #252b2f;
   --color-muted: #6a6258;
   --color-faint: #a39b90;
   --color-line: #e4dcd0;
-  --color-accent: #0e7c77;
+  --color-accent: #2c634a;
   --color-accent-fg: #f4efe6;
   --color-ok: #2f7d4a;
   --color-bad: #c4473a;
-  --color-wash: #e7f3f1;
+  --color-wash: #e9efe4;
 
   --font-sans: "Lexend", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Bricolage Grotesque", ui-rounded, system-ui, sans-serif;
@@ -180,4 +180,203 @@
 
 .anim-boost {
   animation: boost-hop 280ms var(--ease-out);
+}
+
+/* Nico stands on the pitch, with the same ground and light as the game. */
+.nico-scene {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 30rem);
+  height: 19rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+.nico-stadium {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+}
+.nico-scene-lion {
+  position: absolute;
+  left: 11%;
+  bottom: 4%;
+  width: 74%;
+  height: 88%;
+  z-index: 2;
+}
+.nico-scene-ground {
+  position: absolute;
+  height: 4%;
+  width: 42%;
+  left: 28%;
+  bottom: 8%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-ink) 32%, transparent);
+  filter: blur(5px);
+}
+.football-ball {
+  display: inline-block;
+  font-size: 2rem;
+  line-height: 1;
+  filter: drop-shadow(0 3px 2px rgb(0 0 0 / 0.25));
+}
+.nico-scene-ball {
+  position: absolute;
+  right: 18%;
+  bottom: 9%;
+  z-index: 3;
+}
+.nico-scene-onboarding {
+  margin: 1.5rem 0 1rem;
+  height: 18rem;
+}
+.nico-scene-ready {
+  height: 16rem;
+}
+.nico-scene-result {
+  height: 14rem;
+}
+.nico-departure {
+  padding: 0;
+  overflow: hidden;
+}
+.nico-departure-layout {
+  display: grid;
+  align-items: stretch;
+}
+.nico-scene-home {
+  width: 100%;
+  max-width: none;
+  height: 15rem;
+  border-radius: 0;
+}
+.nico-departure-content {
+  min-width: 0;
+  padding: 1.5rem;
+}
+.nico-departure-week {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.football-pitch {
+  position: relative;
+  height: 8.5rem;
+  margin-top: 0.5rem;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 12.5%, rgb(255 255 255 / 0.05) 12.5% 25%),
+    var(--color-accent);
+}
+.pitch-boundary {
+  position: absolute;
+  inset: 10% 5%;
+  border: 1px solid rgb(255 255 255 / 0.6);
+}
+.pitch-center {
+  position: absolute;
+  left: 43%;
+  top: 25%;
+  height: 50%;
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 0.5);
+  border-radius: 50%;
+}
+.pitch-area {
+  position: absolute;
+  right: 5%;
+  top: 23%;
+  width: 18%;
+  height: 54%;
+  border: 1px solid rgb(255 255 255 / 0.6);
+}
+.pitch-goal {
+  position: absolute;
+  right: 1.5%;
+  top: 35%;
+  width: 5%;
+  height: 30%;
+  border: 2px solid var(--color-surface);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 5px, rgb(255 255 255 / 0.4) 5px 6px),
+    repeating-linear-gradient(90deg, transparent 0 5px, rgb(255 255 255 / 0.4) 5px 6px);
+}
+.pitch-nico {
+  position: absolute;
+  height: 98%;
+  width: 28%;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+}
+.pitch-ball {
+  position: absolute;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  transition:
+    left 300ms var(--ease-out),
+    transform 300ms var(--ease-out);
+}
+.pitch-goal-word {
+  position: absolute;
+  left: 38%;
+  top: 13%;
+  color: var(--color-surface);
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  animation: pop-in var(--motion-fast) var(--ease-out);
+}
+.nico-pitch-speech {
+  min-height: 3rem;
+  padding-top: 0.5rem;
+}
+@media (min-width: 640px) {
+  .nico-departure-layout {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
+  .nico-scene-home {
+    height: 100%;
+    min-height: 23rem;
+  }
+  .nico-departure-content {
+    padding: 2rem;
+  }
+  .nico-scene-onboarding {
+    height: 20rem;
+  }
+  .nico-departure-week {
+    padding: 1rem 2rem;
+  }
+  .football-pitch {
+    height: 11rem;
+  }
+}
+@media (max-width: 1023px) {
+  .mission-layout {
+    height: 100dvh;
+    min-height: max(100dvh, 48rem);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .mission-layout > section:first-child {
+    min-height: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-pop,
+  .anim-shake,
+  .anim-rise,
+  .anim-boost,
+  .pitch-goal-word {
+    animation: none;
+  }
+  .pitch-ball {
+    transition: none;
+  }
 }

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Clock, X } from "lucide-react";
 import { NumberPad } from "@/components/number-pad";
-import { FlightTrack } from "@/components/flight-track";
+import { FootballPitch } from "@/components/flight-track";
+import { MascotScene } from "@/components/mascot-scene";
 import { StarRow } from "@/components/star-row";
 import { persistCloud } from "@/components/cloud-sync";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,18 @@ import {
 } from "@/lib/game/audio";
 import { rankById, timeWithBoost } from "@/lib/game/ranks";
 import { usePlayer } from "@/lib/game/store";
-import { planetAt, shipForLevel } from "@/lib/game/worlds";
-import { TARGET_CORRECT, factKey, formatClock, type Fact } from "@/lib/game/types";
+import { planetAt } from "@/lib/game/worlds";
+import {
+  TARGET_CORRECT,
+  factKey,
+  factAnswer,
+  factOp,
+  parseGuess,
+  guessesMatch,
+  formatAnswer,
+  formatClock,
+  type Fact,
+} from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 
 type Phase = "ready" | "running" | "won" | "lost";
@@ -42,7 +53,6 @@ export function MissionPlay() {
   const planetBestMs = usePlayer((s) => s.planetBestMs);
   const planet = planetAt(selectedPlanet);
   const rank = rankById(planet.rankId);
-  const ship = shipForLevel(level);
   const defaultLimit = timeWithBoost(rank, consecutiveFails, extraTimeSec * 1000);
 
   const [phase, setPhase] = useState<Phase>("ready");
@@ -77,6 +87,15 @@ export function MissionPlay() {
   const phaseRef = useRef<Phase>(phase);
   const revealTimer = useRef<number | null>(null);
   const winningRef = useRef(false);
+  const answerLockedRef = useRef(false);
+
+  useEffect(
+    () => () => {
+      endedRef.current = true;
+      if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
+    },
+    [],
+  );
 
   factRef.current = fact;
   typedRef.current = typed;
@@ -90,6 +109,7 @@ export function MissionPlay() {
     (passed: boolean) => {
       if (endedRef.current) return;
       endedRef.current = true;
+      if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
       const finishedAt = Date.now();
       const cap = limitRef.current;
       const elapsedMs = Math.min(cap, finishedAt - startedAtRef.current);
@@ -147,8 +167,11 @@ export function MissionPlay() {
 
   const begin = () => {
     unlockAudio();
+    if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
     winningRef.current = false;
     endedRef.current = false;
+    answerLockedRef.current = false;
+    setFlash("none");
     triedRef.current = [];
     comboRef.current = 0;
     bestComboRef.current = 0;
@@ -185,6 +208,8 @@ export function MissionPlay() {
   };
 
   const goNext = (ok: boolean, missed?: Fact) => {
+    if (endedRef.current) return;
+    answerLockedRef.current = false;
     qStartRef.current = performance.now();
     setTyped("");
     typedRef.current = "";
@@ -207,14 +232,15 @@ export function MissionPlay() {
   };
 
   const submit = (raw?: string) => {
-    if (phaseRef.current !== "running" || revealRef.current !== null) return;
+    if (phaseRef.current !== "running" || endedRef.current || answerLockedRef.current) return;
     const value = (raw ?? typedRef.current).trim();
     if (!value) return;
-    const guess = Number(value);
+    const guess = parseGuess(value);
     if (!Number.isFinite(guess)) return;
     const current = factRef.current;
-    const answer = current.a * current.b;
-    if (guess === answer) {
+    const answer = factAnswer(current);
+    answerLockedRef.current = true;
+    if (guessesMatch(guess, answer)) {
       record(true);
       playCorrect();
       setFlash("ok");
@@ -226,9 +252,12 @@ export function MissionPlay() {
       setCombo(comboRef.current);
       if (correctRef.current >= TARGET_CORRECT) {
         winningRef.current = true;
-        window.setTimeout(() => finishRef.current(true), 320);
+        revealTimer.current = window.setTimeout(() => finishRef.current(true), 700);
       } else {
-        window.setTimeout(() => goNext(true), 220);
+        revealTimer.current = window.setTimeout(
+          () => goNext(true),
+          correctRef.current % 3 === 0 ? 650 : 350,
+        );
       }
     } else {
       record(false);
@@ -246,26 +275,20 @@ export function MissionPlay() {
   };
 
   const onDigit = (d: string) => {
-    if (phaseRef.current !== "running" || revealRef.current !== null) return;
+    if (phaseRef.current !== "running" || endedRef.current || answerLockedRef.current) return;
+    if (!/^[0-9,]$/.test(d) || typedRef.current.length >= 5) return;
+    if (d === "," && typedRef.current.includes(",")) return;
     playTap();
-    setTyped((prev) => {
-      if (prev.length >= 3) return prev;
-      const next = prev + d;
-      typedRef.current = next;
-      if (Number(next) === factRef.current.a * factRef.current.b) {
-        window.setTimeout(() => submit(next), 40);
-      }
-      return next;
-    });
+    const next = typedRef.current + d;
+    typedRef.current = next;
+    setTyped(next);
   };
 
   const onBack = () => {
-    if (phaseRef.current !== "running" || revealRef.current !== null) return;
-    setTyped((p) => {
-      const next = p.slice(0, -1);
-      typedRef.current = next;
-      return next;
-    });
+    if (phaseRef.current !== "running" || endedRef.current || answerLockedRef.current) return;
+    const next = typedRef.current.slice(0, -1);
+    typedRef.current = next;
+    setTyped(next);
   };
 
   useEffect(() => {
@@ -276,9 +299,9 @@ export function MissionPlay() {
         return;
       }
       if (phaseRef.current !== "running") return;
-      if (e.key >= "0" && e.key <= "9") {
+      if ((e.key >= "0" && e.key <= "9") || e.key === "," || e.key === ".") {
         e.preventDefault();
-        onDigit(e.key);
+        onDigit(e.key === "." ? "," : e.key);
       } else if (e.key === "Backspace") {
         e.preventDefault();
         onBack();
@@ -299,33 +322,24 @@ export function MissionPlay() {
   if (phase === "ready") {
     return (
       <div className="paper-grid flex min-h-dvh flex-col items-center justify-center px-4 py-10 text-center">
-        <img
-          src={planet.art}
-          alt=""
-          className="h-40 w-40 rounded-full object-cover shadow-soft"
-          draggable={false}
-        />
+        <MascotScene mood="guide" className="nico-scene-ready" priority />
         <p className="mt-4 text-sm font-medium uppercase tracking-[0.14em] text-muted">
           {rank.name} · Nível {level}
         </p>
         <h1 className="mt-2 font-display text-title">{planet.name}</h1>
         <p className="mt-3 max-w-sm text-muted">
-          {planet.blurb} Quinze acertos com {formatClock(defaultLimit)} no
-          relógio. Cada acerto empurra a nave.
+          {planet.blurb} Vamos juntos: quinze acertos com {formatClock(defaultLimit)} no relógio. Eu
+          jogo com você: dois passes e um chute fazem um gol. Digite a resposta e toque em
+          Confirmar.
         </p>
         {bestHere > 0 ? (
-          <p className="mt-2 font-display text-lg tabular-nums">
-            Recorde: {formatClock(bestHere)}
-          </p>
+          <p className="mt-2 font-display text-lg tabular-nums">Recorde: {formatClock(bestHere)}</p>
         ) : null}
         <Button size="xl" className="mt-8 w-full max-w-sm" onClick={begin}>
-          Decolar
+          Jogar
         </Button>
-        <Link
-          to="/"
-          className="mt-4 text-sm font-medium text-muted no-underline hover:text-ink"
-        >
-          Voltar ao mapa
+        <Link to="/" className="mt-4 text-sm font-medium text-muted no-underline hover:text-ink">
+          Voltar ao campeonato
         </Link>
       </div>
     );
@@ -339,27 +353,29 @@ export function MissionPlay() {
         : null;
     return (
       <div className="paper-grid flex min-h-dvh flex-col items-center justify-center px-4 py-10 text-center">
-        <img
-          src={phase === "won" ? ship.art : planet.art}
-          alt=""
-          className="h-36 w-36 object-contain"
-          draggable={false}
+        <MascotScene
+          mood={phase === "won" ? "win" : "try"}
+          className="nico-scene-result"
+          priority
         />
+        <p className="mt-2 text-sm font-medium text-accent">
+          {phase === "won" ? "Nico comemora com você" : "Nico continua ao seu lado"}
+        </p>
         <h1 className="mt-2 font-display text-title">
           {phase === "won"
             ? delta?.leveledTo
               ? `Nível ${delta.leveledTo}!`
-              : "Planeta conquistado"
-            : "Quase lá"}
+              : "Cinco gols. Que partida!"
+            : "Vamos tentar juntos de novo?"}
         </h1>
         <p className="mt-2 max-w-sm text-muted">
           {phase === "won"
             ? `Quinze acertos em ${formatClock(elapsed)}. +${delta?.xpGained ?? 0} XP.`
-            : `${correct} acerto${correct === 1 ? "" : "s"} com ${formatClock(runLimit)} no relógio. Ainda ganhou +${delta?.xpGained ?? 0} XP.`}
+            : `Você chegou a ${correct} de ${TARGET_CORRECT} acertos. Esse treino valeu +${delta?.xpGained ?? 0} XP. Uma conta de cada vez, a gente chega lá.`}
         </p>
         {phase === "won" && dailyJustDone ? (
           <p className="mt-2 max-w-sm font-display text-accent">
-            Missão de hoje cumprida. A sequência continua.
+            Treino de hoje cumprido. A sequência continua.
           </p>
         ) : null}
         {phase === "won" && delta?.isRecord ? (
@@ -369,7 +385,8 @@ export function MissionPlay() {
           <div className="mt-4 space-y-1">
             <StarRow value={delta?.starsEarned ?? 0} />
             <p className="text-sm text-muted">
-              {delta?.starsEarned ?? 0} estrela{(delta?.starsEarned ?? 0) === 1 ? "" : "s"} neste planeta
+              {delta?.starsEarned ?? 0} estrela{(delta?.starsEarned ?? 0) === 1 ? "" : "s"} nesta
+              etapa
             </p>
           </div>
         ) : null}
@@ -379,17 +396,15 @@ export function MissionPlay() {
           <p className="mt-2 text-sm tabular-nums text-muted">
             {xp} / {need} XP
           </p>
-          {nextPlanet ? (
-            <p className="mt-3 font-display">Novo planeta: {nextPlanet.name}</p>
-          ) : null}
+          {nextPlanet ? <p className="mt-3 font-display">Nova etapa: {nextPlanet.name}</p> : null}
           {delta?.newShipName ? (
-            <p className="mt-1 font-display">Nova nave: {delta.newShipName}</p>
+            <p className="mt-1 font-display">Nova conquista: {delta.newShipName}</p>
           ) : null}
         </Card>
         {prizeReady ? (
           <Card className="mt-4 max-w-sm border-accent/30 bg-wash p-4">
-            <p className="font-display">Dez missões no bolso.</p>
-            <p className="mt-1 text-sm text-muted">Chame quem prometeu o prêmio.</p>
+            <p className="font-display">Dez partidas completas.</p>
+            <p className="mt-1 text-sm text-muted">Celebre com quem combinou o prêmio.</p>
           </Card>
         ) : null}
         <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
@@ -403,9 +418,9 @@ export function MissionPlay() {
               }}
             >
               {nextPlanet
-                ? `Decolar para ${nextPlanet.name}`
+                ? `Jogar: ${nextPlanet.name}`
                 : phase === "won"
-                  ? "De novo neste planeta"
+                  ? "Jogar esta etapa de novo"
                   : "Tentar de novo"}
             </Button>
           ) : null}
@@ -420,7 +435,7 @@ export function MissionPlay() {
             className="w-full"
             onClick={() => navigate({ to: "/" })}
           >
-            Mapa
+            Meu campeonato
           </Button>
         </div>
       </div>
@@ -436,7 +451,7 @@ export function MissionPlay() {
               type="button"
               onClick={() => navigate({ to: "/" })}
               className="inline-flex size-11 items-center justify-center rounded-md border border-line bg-surface text-muted"
-              aria-label="Sair da missão"
+              aria-label="Sair da partida"
             >
               <X className="size-5" strokeWidth={2} />
             </button>
@@ -444,9 +459,7 @@ export function MissionPlay() {
               <div
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-display text-lg tabular-nums",
-                  urgent
-                    ? "border-bad/30 bg-bad/10 text-bad"
-                    : "border-line bg-surface text-ink",
+                  urgent ? "border-bad/30 bg-bad/10 text-bad" : "border-line bg-surface text-ink",
                 )}
               >
                 <Clock className="size-4" strokeWidth={2} />
@@ -461,12 +474,7 @@ export function MissionPlay() {
             </p>
           </div>
 
-          <FlightTrack
-            correct={correct}
-            combo={combo}
-            shipArt={ship.art}
-            planetArt={planet.art}
-          />
+          <FootballPitch correct={correct} combo={combo} feedback={flash} />
 
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line">
             <div
@@ -475,9 +483,9 @@ export function MissionPlay() {
             />
           </div>
 
-          <div className="flex flex-1 flex-col items-center justify-center py-6">
-            <p className="mb-4 text-sm font-medium uppercase tracking-[0.16em] text-muted">
-              Tabuada do {fact.a}
+          <div className="flex flex-1 flex-col items-center justify-center py-3">
+            <p className="mb-2 text-sm font-medium uppercase tracking-[0.16em] text-muted">
+              {factOp(fact) === "div" ? "Divisão" : "Multiplicação"} · resolva a jogada
             </p>
             <p
               key={flashKey}
@@ -487,11 +495,11 @@ export function MissionPlay() {
                 flash === "bad" && "anim-shake text-bad",
               )}
             >
-              {fact.a} × {fact.b}
+              {fact.a} {factOp(fact) === "div" ? "÷" : "×"} {fact.b}
             </p>
-            <div className="mt-8 flex min-h-16 items-center justify-center">
+            <div className="mt-3 flex min-h-14 items-center justify-center">
               {reveal !== null ? (
-                <p className="font-display text-3xl text-muted">= {reveal}</p>
+                <p className="font-display text-3xl text-muted">= {formatAnswer(reveal)}</p>
               ) : (
                 <p className="font-display text-5xl tabular-nums tracking-tight">
                   {typed || <span className="text-faint">?</span>}
@@ -506,7 +514,7 @@ export function MissionPlay() {
             onDigit={onDigit}
             onBack={onBack}
             onSubmit={() => submit()}
-            disabled={reveal !== null}
+            disabled={flash !== "none"}
           />
         </section>
       </div>

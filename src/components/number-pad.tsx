@@ -29,7 +29,7 @@ export function NumberPad({
               else onDigit(key);
             }}
             className={cn(
-              "flex h-16 items-center justify-center rounded-md border text-2xl font-display transition-[transform,background-color] duration-150 ease-out touch-manipulation active:not-disabled:scale-[0.96] disabled:opacity-40",
+              "flex h-14 sm:h-16 items-center justify-center rounded-md border text-2xl font-display transition-[transform,background-color] duration-150 ease-out touch-manipulation active:not-disabled:scale-[0.96] disabled:opacity-40",
               isAction
                 ? "border-line bg-wash text-ink"
                 : "border-line bg-surface text-ink hover:bg-wash",

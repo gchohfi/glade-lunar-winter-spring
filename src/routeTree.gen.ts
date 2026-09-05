@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LabirintoRouteImport } from './routes/labirinto'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PaisRouteImport } from './routes/pais'
 import { Route as PlayRouteImport } from './routes/play'
@@ -18,6 +19,11 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabirintoRoute = LabirintoRouteImport.update({
+  id: '/labirinto',
+  path: '/labirinto',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -43,6 +49,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/labirinto': typeof LabirintoRoute
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/labirinto': typeof LabirintoRoute
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/labirinto': typeof LabirintoRoute
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
@@ -65,14 +74,22 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/pais' | '/play' | '/api/auth/$'
+  fullPaths: '/' | '/labirinto' | '/login' | '/pais' | '/play' | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/pais' | '/play' | '/api/auth/$'
-  id: '__root__' | '/' | '/login' | '/pais' | '/play' | '/api/auth/$'
+  to: '/' | '/labirinto' | '/login' | '/pais' | '/play' | '/api/auth/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/labirinto'
+    | '/login'
+    | '/pais'
+    | '/play'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LabirintoRoute: typeof LabirintoRoute
   LoginRoute: typeof LoginRoute
   PaisRoute: typeof PaisRoute
   PlayRoute: typeof PlayRoute
@@ -86,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labirinto': {
+      id: '/labirinto'
+      path: '/labirinto'
+      fullPath: '/labirinto'
+      preLoaderRoute: typeof LabirintoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -121,6 +145,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LabirintoRoute: LabirintoRoute,
   LoginRoute: LoginRoute,
   PaisRoute: PaisRoute,
   PlayRoute: PlayRoute,
