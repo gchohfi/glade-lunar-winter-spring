@@ -3,12 +3,12 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import test from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 import {
   appNameFromHost,
-  createHeadInjector,
+  createHeadInjector as createRealHeadInjector,
   grokXCreatorHeadTags,
-  injectGrokPwaHead,
+  injectGrokPwaHead as injectRealGrokPwaHead,
   isDocumentPath,
   isInstallQuery,
   publicAppHost,
@@ -18,8 +18,29 @@ import {
   stripInstallParams,
 } from "./grok-pwa-shared.mjs";
 import { renderInstallPage } from "./grok-pwa-plugin.mjs";
+import { temporaryWorkspace } from "./test-support/workspace.mjs";
 
 const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const EMPTY_ROOT = temporaryWorkspace();
+
+// Generic head-injection cases must not read this game's title/card from cwd.
+// The implementation stays real; tests needing files supply an explicit root.
+function injectGrokPwaHead(html, context = {}) {
+  return injectRealGrokPwaHead(html, { cwd: EMPTY_ROOT, ...context });
+}
+
+function createHeadInjector(context = {}) {
+  return createRealHeadInjector({ cwd: EMPTY_ROOT, ...context });
+}
+
+const inheritedPublicHostname = process.env.VITE_PUBLIC_HOSTNAME;
+beforeEach(() => {
+  delete process.env.VITE_PUBLIC_HOSTNAME;
+});
+afterEach(() => {
+  if (inheritedPublicHostname === undefined) delete process.env.VITE_PUBLIC_HOSTNAME;
+  else process.env.VITE_PUBLIC_HOSTNAME = inheritedPublicHostname;
+});
 
 test("injects before </head>", () => {
   const out = injectGrokPwaHead("<html><head><title>x</title></head><body></body></html>");
@@ -83,14 +104,8 @@ test("injects x:creator tags when both creator values are set", () => {
 
 test("escapes x:creator values", () => {
   const tags = grokXCreatorHeadTags('"><script>', '1" onclick="alert(1)');
-  assert.equal(
-    tags[0],
-    '<meta property="x:creator" content="&quot;&gt;&lt;script&gt;">',
-  );
-  assert.equal(
-    tags[1],
-    '<meta property="x:creator:id" content="1&quot; onclick=&quot;alert(1)">',
-  );
+  assert.equal(tags[0], '<meta property="x:creator" content="&quot;&gt;&lt;script&gt;">');
+  assert.equal(tags[1], '<meta property="x:creator:id" content="1&quot; onclick=&quot;alert(1)">');
 });
 
 test("does not duplicate x:creator tags", () => {
@@ -208,7 +223,7 @@ test("snapshotOgIdentity stamps banner from public/x-banner.jpg", () => {
 });
 
 test("emits x:game:image for a public host when site.banner is set", () => {
-  const html = "<html><head><meta property=\"x:game:image\" content=\"old\"></head></html>";
+  const html = '<html><head><meta property="x:game:image" content="old"></head></html>';
   const out = injectGrokPwaHead(html, {
     host: "wild-race.grok.me",
     site: { title: "Wild Race", type: "x:game", card: "custom", banner: "/x-banner.jpg" },
@@ -251,7 +266,10 @@ test("published grok.me slug is still a title fallback", () => {
 });
 
 test("rejects Vercel system hosts as og:image origins", () => {
-  assert.equal(publicAppHost("01a020b6-803a-71a2-bb47-e2bec57eb9a2-662k8x1l1-xai-org.vercel.app"), "");
+  assert.equal(
+    publicAppHost("01a020b6-803a-71a2-bb47-e2bec57eb9a2-662k8x1l1-xai-org.vercel.app"),
+    "",
+  );
   assert.equal(publicAppHost("demo.vercel.app:443"), "");
   assert.equal(publicAppHost("vercel.app"), "");
   assert.equal(publicAppHost("wild-race.grok.me"), "wild-race.grok.me");
@@ -347,9 +365,7 @@ test("placeholder og:image appends site.color when it is 6-digit hex", () => {
 });
 
 test("document title entities are not double-escaped on og:title", () => {
-  const out = injectGrokPwaHead(
-    "<html><head><title>Cats &amp; Dogs</title></head></html>",
-  );
+  const out = injectGrokPwaHead("<html><head><title>Cats &amp; Dogs</title></head></html>");
   assert.match(out, /property="og:title" content="Cats &amp; Dogs"/);
   assert.doesNotMatch(out, /Cats &amp;amp; Dogs/);
 });
@@ -360,6 +376,42 @@ test("site.json title wins over the host slug", () => {
     site: { title: "Pixel Nova" },
   });
   assert.match(out, /property="og:title" content="Pixel Nova"/);
+});
+
+test("a file-backed identity overrides host and document title without leaking another workspace", () => {
+  const root = temporaryWorkspace({
+    "src/lib/og/site.json": JSON.stringify({ title: "Clube & Escola", type: "x:game" }),
+    "public/og.jpg": "fixture-image",
+  });
+  const html = "<html><head><title>Old title</title></head></html>";
+  const out = injectGrokPwaHead(html, { cwd: root, host: "example-game.grok.me" });
+  assert.match(out, /property="og:title" content="Clube &amp; Escola"/);
+  assert.match(out, /property="og:image" content="https:\/\/example-game\.grok\.me\/og\.jpg"/);
+  const empty = injectGrokPwaHead(html, { host: "example-game.grok.me" });
+  assert.match(empty, /property="og:title" content="Old title"/);
+  assert.match(empty, /og\.grok\.me\/v1\/card\.png/);
+  assert.doesNotMatch(empty, /Clube &amp; Escola|Missão Tabuada/);
+});
+
+test("Missão Tabuada retains its real identity and custom share assets in baked output", () => {
+  const { site } = snapshotOgIdentity(TEMPLATE_ROOT);
+  assert.equal(site.title, "Missão Tabuada");
+  assert.equal(site.type, "x:game");
+  assert.equal(site.card, "custom");
+  assert.equal(site.image, "/og.jpg");
+  assert.equal(site.banner, "/x-banner.jpg");
+  const out = injectGrokPwaHead("<html><head><title>Fallback</title></head></html>", {
+    site,
+    host: "tabuada.example.com",
+  });
+  assert.match(out, /property="og:title" content="Missão Tabuada"/);
+  assert.match(out, /property="og:type" content="x:game"/);
+  assert.match(out, /property="og:image" content="https:\/\/tabuada\.example\.com\/og\.jpg"/);
+  assert.match(
+    out,
+    /property="x:game:image" content="https:\/\/tabuada\.example\.com\/x-banner\.jpg"/,
+  );
+  assert.doesNotMatch(out, /og\.grok\.me/);
 });
 
 test("injects into documents with no head element", () => {
@@ -503,4 +555,3 @@ test("vite plugin bakes og identity as a virtual module", () => {
   assert.match(plugin, /virtual:grok-og-identity/);
   assert.match(plugin, /snapshotOgIdentity/);
 });
-

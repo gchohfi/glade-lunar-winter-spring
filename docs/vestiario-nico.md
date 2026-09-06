@@ -46,6 +46,7 @@ Imagens finais e prompts: [Assets do Vestiário](assets-vestiario.md). A variaç
 - Typecheck e lint dos arquivos alterados: aprovados.
 - 36 testes focados aprovados: Vestiário (9), apresentação/campo (4), futebol/progresso (9), aprendizagem (11) e layout da equação (3).
 - Suíte completa: 231 testes, 218 aprovados e as mesmas 13 falhas de template já registradas antes desta entrega. Distribuição: `check-auth-invariant` (1), `grok-pwa-plugin` (8), `migration-plan` (1), `with-app-env` (3). Não foram ocultadas nem modificadas nesta entrega.
+- Atualização posterior: as 13 falhas foram corrigidas isolando os cenários de teste; a suíte completa passou com 270 testes. Veja o [relatório da correção](qa-test-suite-fix.md).
 - Smoke em desenvolvimento e build: desktop 1280×800 e celular 390×844, resposta 200, sem overflow horizontal, sem erros de página/console, sem divergência material entre versões e sem alertas de marca/autenticação.
 - Inspeção visual dos screenshots desktop e mobile. O smoke desktop compilado capturou o estado breve de carregamento; a revisão interativa posterior confirmou carregamento completo, controles ativos e imagens carregadas.
 - Revisão interativa adicional em 320×568, 834×1194 e 1440×1000: sem overflow horizontal. Em 320px, a janela usa rolagem interna e permite fechar; o campo original permanece após cancelar a prévia.

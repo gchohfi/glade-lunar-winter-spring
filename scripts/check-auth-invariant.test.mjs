@@ -13,6 +13,7 @@ import {
   probeDevAuthEnabled,
 } from "./check-auth-invariant.mjs";
 import { projectRoot } from "./with-app-env.mjs";
+import { temporaryWorkspace } from "./test-support/workspace.mjs";
 
 /**
  * The JSON body `/__app-env` would serve. Do not start a real Vite server —
@@ -90,9 +91,21 @@ test("only a divergence warns the smoke verdict", () => {
   }
 });
 
-test("the build side resolves the template's shipped app-env", () => {
-  assert.equal(buildAuthEnabled(projectRoot(), {}), false);
-  assert.equal(buildAuthEnabled(projectRoot(), { VITE_AUTH_ENABLED: "true" }), true);
+test("the build side resolves an auth-off fixture and respects explicit overrides", () => {
+  const root = temporaryWorkspace({ ".grok/app-env.json": '{"VITE_AUTH_ENABLED":"false"}' });
+  assert.equal(buildAuthEnabled(root, {}), false);
+  assert.equal(buildAuthEnabled(root, { VITE_AUTH_ENABLED: "true" }), true);
+});
+
+test("the build side keeps auth on when config is absent or explicitly on", () => {
+  assert.equal(buildAuthEnabled(temporaryWorkspace(), {}), true);
+  const root = temporaryWorkspace({ ".grok/app-env.json": '{"VITE_AUTH_ENABLED":"true"}' });
+  assert.equal(buildAuthEnabled(root, {}), true);
+  assert.equal(buildAuthEnabled(root, { VITE_AUTH_ENABLED: "false" }), false);
+});
+
+test("Missão Tabuada keeps its existing family sign-in enabled by default", () => {
+  assert.equal(buildAuthEnabled(projectRoot(), {}), true);
 });
 
 test("the CLI reports rather than silently passing when run via a symlink", async () => {
