@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { isMigrationFile, migrationName, pendingMigrations } from "./migration-plan.mjs";
 import { projectRoot } from "./with-app-env.mjs";
+import { temporaryWorkspace } from "./test-support/workspace.mjs";
 
 const AUTH_MIGRATION = "0001_auth.sql";
 
@@ -56,17 +57,35 @@ test("non-.sql entries are dropped (readdir also yields the auth/ directory)", (
   assert.deepEqual(pendingMigrations(["auth", "README.md"], []), []);
 });
 
-test("the auth schema ships outside the globbed directory", () => {
-  const migrationsDir = join(projectRoot(), "migrations");
+test("an auth-off fixture keeps the auth schema outside the globbed directory", () => {
+  const root = temporaryWorkspace({
+    "migrations/auth/0001_auth.sql": readFileSync(
+      join(projectRoot(), "migrations/auth", AUTH_MIGRATION),
+    ),
+  });
+  const migrationsDir = join(root, "migrations");
   assert.deepEqual(pendingMigrations(readdirSync(migrationsDir), []), []);
   assert.ok(readdirSync(join(migrationsDir, "auth")).includes("0001_auth.sql"));
+});
+
+test("Missão Tabuada applies auth then game migrations once, in order", () => {
+  const paths = readdirSync(join(projectRoot(), "migrations"));
+  assert.deepEqual(
+    pendingMigrations(paths, []).map(({ name }) => name),
+    ["0001_auth.sql", "0002_tabuada.sql"],
+  );
+  assert.deepEqual(
+    pendingMigrations(paths, [AUTH_MIGRATION]).map(({ name }) => name),
+    ["0002_tabuada.sql"],
+  );
+  assert.deepEqual(pendingMigrations(paths, [AUTH_MIGRATION, "0002_tabuada.sql"]), []);
 });
 
 test("this workspace's auth schema copy is byte-identical to its source", () => {
   // An edited copy diverges silently: basename keying skips it on a database
   // that already ran the original, and applies it on a fresh PGLite preview.
   const pair = authSchemaCopy(projectRoot());
-  if (pair === null) return; // sign-in off — nothing has been copied up
+  assert.ok(pair, "Missão Tabuada has sign-in on: the auth schema copy must exist");
   assert.equal(
     pair.copy,
     pair.source,
