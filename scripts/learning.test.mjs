@@ -156,6 +156,13 @@ test("explicit hint does not advance; comma input and completion work without re
   );
 });
 
+test("nearby decimal values are not accepted as a correct lesson answer", () => {
+  for (const raw of ["7", "7,49", "7,54"]) {
+    const state = typeAnswer(startPractice([{ a: 15, b: 2, op: "div" }]), raw);
+    assert.equal(practiceReducer(state, { type: "submit" }).phase, "explain");
+  }
+});
+
 test("weekly accuracy is weighted by answers and empty history stays unknown", () => {
   const state = emptyState();
   const now = new Date("2026-09-05T15:00:00Z");

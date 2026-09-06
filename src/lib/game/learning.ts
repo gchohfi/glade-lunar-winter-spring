@@ -4,7 +4,6 @@ import {
   factKey,
   factOp,
   formatAnswer,
-  guessesMatch,
   parseGuess,
   todayKey,
   type Fact,
@@ -155,7 +154,8 @@ export function practiceReducer(state: PracticeState, action: PracticeAction): P
   if (action.type === "submit") {
     const guess = parseGuess(state.typed);
     if (!Number.isFinite(guess)) return state;
-    return guessesMatch(guess, factAnswer(state.deck[state.index]))
+    // Integers and halves are exact in binary; nearby answers are still wrong.
+    return guess === factAnswer(state.deck[state.index])
       ? { ...state, phase: "correct" }
       : { ...state, phase: "explain", assisted: true };
   }
