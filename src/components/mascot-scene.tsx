@@ -1,4 +1,5 @@
 import { Mascot, type MascotMood } from "@/components/mascot";
+import { FootballBall } from "@/components/football-ball";
 import { STADIUM_ART } from "@/lib/game/worlds";
 import { cn } from "@/lib/utils";
 
@@ -23,9 +24,7 @@ export function MascotScene({
       />
       <div className="nico-scene-ground" aria-hidden="true" />
       <Mascot mood={mood} className="nico-scene-lion" priority={priority} />
-      <span className="football-ball nico-scene-ball" aria-hidden="true">
-        ⚽
-      </span>
+      <FootballBall className="nico-scene-ball" />
     </div>
   );
 }

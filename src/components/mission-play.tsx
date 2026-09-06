@@ -316,31 +316,55 @@ export function MissionPlay() {
 
   const urgent = remaining < 10_000;
   const ratio = remaining / runLimit;
-  const elapsedLive = Math.max(0, runLimit - remaining);
   const bestHere = planetBestMs[selectedPlanet] ?? 0;
 
   if (phase === "ready") {
     return (
-      <div className="paper-grid flex min-h-dvh flex-col items-center justify-center px-4 py-10 text-center">
-        <MascotScene mood="guide" className="nico-scene-ready" priority />
-        <p className="mt-4 text-sm font-medium uppercase tracking-[0.14em] text-muted">
-          {rank.name} · Nível {level}
-        </p>
-        <h1 className="mt-2 font-display text-title">{planet.name}</h1>
-        <p className="mt-3 max-w-sm text-muted">
-          {planet.blurb} Vamos juntos: quinze acertos com {formatClock(defaultLimit)} no relógio. Eu
-          jogo com você: dois passes e um chute fazem um gol. Digite a resposta e toque em
-          Confirmar.
-        </p>
-        {bestHere > 0 ? (
-          <p className="mt-2 font-display text-lg tabular-nums">Recorde: {formatClock(bestHere)}</p>
-        ) : null}
-        <Button size="xl" className="mt-8 w-full max-w-sm" onClick={begin}>
-          Jogar
-        </Button>
-        <Link to="/" className="mt-4 text-sm font-medium text-muted no-underline hover:text-ink">
-          Voltar ao campeonato
-        </Link>
+      <div className="match-entry-page">
+        <div className="match-entry-card">
+          <MascotScene mood="guide" className="nico-scene-ready" priority />
+          <div className="match-entry-content">
+            <p className="match-eyebrow">Missão Tabuada · vestiário</p>
+            <p className="mt-4 text-sm font-medium text-muted">
+              {rank.name} · Nível {level}
+            </p>
+            <h1 className="mt-2 font-display text-title">{planet.name}</h1>
+            <p className="mt-3 max-w-sm text-muted">
+              O Nico entra em campo com você. Resolva a conta para trocar passes e chegar ao gol.
+            </p>
+            <div className="match-entry-stats">
+              <div>
+                <strong>15</strong>
+                <span>acertos</span>
+              </div>
+              <div>
+                <strong>5</strong>
+                <span>gols</span>
+              </div>
+              <div>
+                <strong>{formatClock(defaultLimit)}</strong>
+                <span>para jogar</span>
+              </div>
+            </div>
+            <p className="text-sm text-muted">
+              Dois passes e um chute fazem um gol. Digite a resposta e toque em Confirmar.
+            </p>
+            {bestHere > 0 ? (
+              <p className="mt-2 font-display text-lg tabular-nums">
+                Recorde: {formatClock(bestHere)}
+              </p>
+            ) : null}
+            <Button size="xl" className="mt-8 w-full max-w-sm" onClick={begin}>
+              Jogar
+            </Button>
+            <Link
+              to="/"
+              className="mt-4 block text-sm font-medium text-muted no-underline hover:text-ink"
+            >
+              Voltar ao campeonato
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -408,7 +432,10 @@ export function MissionPlay() {
           </Card>
         ) : null}
         <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
-          <Link to="/treino" className={cn(buttonVariants({ variant: "secondary" }), "w-full no-underline")}>
+          <Link
+            to="/treino"
+            className={cn(buttonVariants({ variant: "secondary" }), "w-full no-underline")}
+          >
             Treinar com Nico, sem cronômetro
           </Link>
           {phase === "lost" || !prizeReady ? (
@@ -446,48 +473,48 @@ export function MissionPlay() {
   }
 
   return (
-    <div className="paper-grid min-h-dvh">
-      <div className="mx-auto mission-layout w-full max-w-5xl">
-        <section className="safe-top flex flex-col px-4 pb-4 sm:px-6">
-          <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/" })}
-              className="inline-flex size-11 items-center justify-center rounded-md border border-line bg-surface text-muted"
-              aria-label="Sair da partida"
-            >
-              <X className="size-5" strokeWidth={2} />
-            </button>
-            <div className="flex flex-col items-center">
-              <div
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-display text-lg tabular-nums",
-                  urgent ? "border-bad/30 bg-bad/10 text-bad" : "border-line bg-surface text-ink",
-                )}
-              >
-                <Clock className="size-4" strokeWidth={2} />
-                {formatClock(remaining)}
-              </div>
-              <p className="mt-1 text-xs tabular-nums text-muted">
-                Tempo {formatClock(elapsedLive)}
-              </p>
-            </div>
-            <p className="w-11 text-right font-display text-lg tabular-nums">
-              {correct}/{TARGET_CORRECT}
-            </p>
+    <div className="match-page">
+      <header className="match-header">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => navigate({ to: "/" })}
+          className="match-exit"
+          aria-label="Sair da partida"
+        >
+          <X className="size-5" strokeWidth={2} />
+        </Button>
+        <div className="match-heading">
+          <p className="match-eyebrow">Missão Tabuada · {rank.name}</p>
+          <h1>{planet.name}</h1>
+        </div>
+        <div className="match-clock">
+          <div className={cn("match-clock-value", urgent && "text-bad")}>
+            <Clock className="size-4" strokeWidth={2} />
+            {formatClock(remaining)}
           </div>
-
+          <span className="match-stat-label">restantes</span>
+        </div>
+        <div className="match-answers-count">
+          <strong>
+            {correct}
+            <span>/{TARGET_CORRECT}</span>
+          </strong>
+          <span className="match-stat-label">acertos</span>
+        </div>
+        <div className="match-time-track" aria-hidden="true">
+          <div
+            className={cn(urgent ? "bg-bad" : "bg-accent")}
+            style={{ width: `${Math.max(0, ratio * 100)}%` }}
+          />
+        </div>
+      </header>
+      <div className="mx-auto mission-layout">
+        <section className="match-main">
           <FootballPitch correct={correct} combo={combo} feedback={flash} />
 
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line">
-            <div
-              className={cn("h-full rounded-full", urgent ? "bg-bad" : "bg-accent")}
-              style={{ width: `${Math.max(0, ratio * 100)}%` }}
-            />
-          </div>
-
-          <div className="mission-question flex flex-col items-center justify-center py-3">
-            <p className="mb-2 text-sm font-medium uppercase tracking-[0.16em] text-muted">
+          <div className="mission-question" data-feedback={flash}>
+            <p className="mission-question-label">
               {factOp(fact) === "div" ? "Divisão" : "Multiplicação"} · resolva a jogada
             </p>
             <div className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 font-display tabular-nums tracking-tight">
@@ -502,20 +529,33 @@ export function MissionPlay() {
               >
                 {fact.a} {factOp(fact) === "div" ? "÷" : "×"} {fact.b}
               </p>
-              <p data-answer className="text-4xl leading-tight text-ink whitespace-nowrap sm:text-5xl">
+              <p data-answer className="mission-answer">
                 = {reveal !== null ? formatAnswer(reveal) : typed || "?"}
               </p>
             </div>
+            <p className="mission-question-hint">
+              {flash === "bad"
+                ? "Essa é a resposta. Vamos tentar outra jogada."
+                : flash === "ok"
+                  ? "Boa jogada!"
+                  : "Sua resposta faz a bola avançar."}
+            </p>
           </div>
         </section>
 
-        <section className="mission-keyboard safe-bottom flex flex-col justify-end bg-surface/80 px-4 pt-4 sm:px-6 lg:border-l lg:border-line">
+        <section className="mission-keyboard safe-bottom" aria-label="Sua resposta">
+          <div className="keypad-heading">
+            <p className="match-eyebrow">Seu lance</p>
+            <h2>Qual é a resposta?</h2>
+            <p>Digite os números e confirme a jogada.</p>
+          </div>
           <NumberPad
             onDigit={onDigit}
             onBack={onBack}
             onSubmit={() => submit()}
             disabled={flash !== "none"}
           />
+          <p className="keypad-hint">No computador, use os números e Enter.</p>
         </section>
       </div>
     </div>

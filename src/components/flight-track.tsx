@@ -1,4 +1,6 @@
 import { Mascot } from "@/components/mascot";
+import { FootballBall } from "@/components/football-ball";
+import { Check, Flag } from "lucide-react";
 import { footballState, GOALS_PER_MATCH, type PlayFeedback } from "@/lib/game/football";
 
 export function FootballPitch({
@@ -15,55 +17,85 @@ export function FootballPitch({
   const play = footballState(correct, feedback);
   const practicing = practiceTotal !== undefined;
   const goal = !practicing && play.goalJustScored;
+  const step = goal ? 3 : correct % 3;
+  // Screen coordinates follow the perspective in pitch-v2, not scoring logic.
+  const ballStep = goal ? 3 : correct % 3;
   return (
-    <div className="football-play" data-football-play>
-      <div className="mt-3 flex items-center justify-between gap-2 text-sm">
-        <p className="font-display text-lg" data-score>
+    <div className="football-play" data-football-play data-feedback={feedback}>
+      <div className="pitch-scoreboard">
+        <div>
+          <p className="match-eyebrow">
+            {practicing ? "Centro de treinamento" : "Nosso time em campo"}
+          </p>
+          <p className="pitch-current-play">
+            {practicing ? "Uma jogada de cada vez" : goal ? "Gol do nosso time!" : play.nextPlay}
+          </p>
+        </div>
+        <p className="pitch-score" data-score>
+          <Flag className="size-4" aria-hidden="true" />
           {practicing
             ? `Jogadas ${correct}/${practiceTotal}`
             : `Gols ${play.goals}/${GOALS_PER_MATCH}`}
         </p>
-        <p className="text-muted">
-          {practicing ? "Treino assistido" : goal ? "Gol!" : play.nextPlay}
-        </p>
-        {combo >= 3 ? <span className="text-accent">{combo} seguidos</span> : null}
       </div>
       <div className="football-pitch" data-goal={goal}>
-        <div className="pitch-boundary" aria-hidden="true" />
-        <div className="pitch-center" aria-hidden="true" />
-        <div className="pitch-area" aria-hidden="true" />
-        <div className="pitch-goal" aria-hidden="true" />
+        <img
+          className="pitch-environment"
+          src="/game/football/pitch-v2.webp"
+          alt=""
+          draggable={false}
+        />
+        <div className="pitch-nico-shadow" aria-hidden="true" />
         <Mascot
           mood={feedback === "bad" ? "try" : feedback === "ok" ? "win" : "guide"}
           className="pitch-nico"
         />
-        <span
-          className="football-ball pitch-ball"
-          style={{ left: play.ballPercent + "%" }}
+        <div
+          className="pitch-ball-position"
+          data-ball-position
+          style={{
+            left: [28, 48, 64, 78][ballStep] + "%",
+            top: [84, 78, 73, 65][ballStep] + "%",
+            scale: [1, 0.94, 0.86, 0.72][ballStep],
+          }}
           aria-hidden="true"
         >
-          ⚽
-        </span>
+          <FootballBall />
+        </div>
         {goal ? (
           <span className="pitch-goal-word" aria-hidden="true">
             GOOOL!
           </span>
         ) : null}
       </div>
-      <p
-        className="nico-pitch-speech text-sm text-muted"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <span className="font-medium text-accent">Nico: </span>
-        {practicing
-          ? feedback === "bad"
-            ? "Vamos resolver juntos. Eu mostro um caminho."
-            : feedback === "ok"
-              ? "Boa! Cada jogada é uma chance de aprender."
-              : "Sem pressa. Se precisar, toque em Me ensina, Nico."
-          : play.line}
+      {!practicing ? (
+        <ol className="pitch-sequence" aria-label="Dois passes e um chute fazem um gol">
+          {["Primeiro passe", "Segundo passe", "Chute a gol"].map((label, i) => (
+            <li
+              key={label}
+              data-state={i < step ? "done" : i === step ? "current" : "next"}
+              aria-current={i === step ? "step" : undefined}
+            >
+              <span className="pitch-step-number" aria-hidden="true">
+                {i < step ? <Check className="size-3" /> : i + 1}
+              </span>
+              <span>{label}</span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      <p className="nico-pitch-speech" role="status" aria-live="polite" aria-atomic="true">
+        <span className="nico-speech-name">Nico</span>
+        <span>
+          {practicing
+            ? feedback === "bad"
+              ? "Vamos resolver juntos. Eu mostro um caminho."
+              : feedback === "ok"
+                ? "Boa! Cada jogada é uma chance de aprender."
+                : "Sem pressa. Se precisar, toque em Me ensina, Nico."
+            : play.line}
+        </span>
+        {combo >= 3 ? <span className="pitch-combo">{combo} seguidos</span> : null}
       </p>
     </div>
   );

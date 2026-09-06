@@ -92,30 +92,31 @@ export function PracticePlay() {
   const completed = session.index + (isCorrect ? 1 : 0);
 
   return (
-    <div className="paper-grid min-h-dvh">
-      <div className="mission-layout practice-layout mx-auto w-full max-w-5xl" data-help={isHelp}>
-        <section className="safe-top flex flex-col px-4 pb-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <Link
-              to="/"
-              aria-label="Sair do treino"
-              className={cn(buttonVariants({ variant: "secondary" }), "w-12 shrink-0 px-0")}
-            >
-              <ArrowLeft className="size-5" />
-            </Link>
-            <div>
-              <h1 className="text-lg">Treinar com Nico</h1>
-              <p className="text-sm text-muted">Sem cronômetro · no seu ritmo</p>
-            </div>
-          </div>
+    <div className="match-page">
+      <header className="match-header">
+        <Link
+          to="/"
+          aria-label="Sair do treino"
+          className={cn(buttonVariants({ variant: "secondary" }), "match-exit")}
+        >
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div className="match-heading">
+          <p className="match-eyebrow">Missão Tabuada · treino livre</p>
+          <h1>Treinar com Nico</h1>
+        </div>
+        <span className="practice-time-label">Sem cronômetro</span>
+      </header>
+      <div className="mission-layout practice-layout mx-auto" data-help={isHelp}>
+        <section className="match-main">
           <FootballPitch
             correct={completed}
             combo={0}
             feedback={isCorrect ? "ok" : isHelp ? "bad" : "none"}
             practiceTotal={PRACTICE_LENGTH}
           />
-          <div className="mission-question flex flex-col items-center justify-center py-3">
-            <p className="mb-2 text-sm text-muted">
+          <div className="mission-question" data-feedback={isCorrect ? "ok" : "none"}>
+            <p className="mission-question-label">
               {factOp(fact) === "div" ? "Divisão" : "Multiplicação"} · jogada {session.index + 1} de{" "}
               {session.deck.length}
             </p>
@@ -133,14 +134,14 @@ export function PracticePlay() {
               >
                 {equationText(fact)}
               </p>
-              <p data-answer className="whitespace-nowrap text-4xl text-ink">
+              <p data-answer className="mission-answer">
                 = {isHelp ? "?" : session.typed || "?"}
               </p>
             </div>
           </div>
         </section>
 
-        <section className="mission-keyboard safe-bottom flex flex-col justify-center bg-surface/80 px-4 pt-4 sm:px-6 lg:border-l lg:border-line">
+        <section className="mission-keyboard safe-bottom" aria-label="Sua resposta e dicas">
           {isHelp ? (
             <Card className="p-4" role="region" aria-labelledby="explanation-title">
               <p className="text-sm font-medium text-accent">Nico explica a jogada</p>
