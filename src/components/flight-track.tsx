@@ -5,22 +5,30 @@ export function FootballPitch({
   correct,
   combo,
   feedback,
+  practiceTotal,
 }: {
   correct: number;
   combo: number;
   feedback: PlayFeedback;
+  practiceTotal?: number;
 }) {
   const play = footballState(correct, feedback);
+  const practicing = practiceTotal !== undefined;
+  const goal = !practicing && play.goalJustScored;
   return (
     <div className="football-play" data-football-play>
       <div className="mt-3 flex items-center justify-between gap-2 text-sm">
         <p className="font-display text-lg" data-score>
-          Gols {play.goals}/{GOALS_PER_MATCH}
+          {practicing
+            ? `Jogadas ${correct}/${practiceTotal}`
+            : `Gols ${play.goals}/${GOALS_PER_MATCH}`}
         </p>
-        <p className="text-muted">{play.goalJustScored ? "Gol!" : play.nextPlay}</p>
+        <p className="text-muted">
+          {practicing ? "Treino assistido" : goal ? "Gol!" : play.nextPlay}
+        </p>
         {combo >= 3 ? <span className="text-accent">{combo} seguidos</span> : null}
       </div>
-      <div className="football-pitch" data-goal={play.goalJustScored}>
+      <div className="football-pitch" data-goal={goal}>
         <div className="pitch-boundary" aria-hidden="true" />
         <div className="pitch-center" aria-hidden="true" />
         <div className="pitch-area" aria-hidden="true" />
@@ -36,7 +44,7 @@ export function FootballPitch({
         >
           ⚽
         </span>
-        {play.goalJustScored ? (
+        {goal ? (
           <span className="pitch-goal-word" aria-hidden="true">
             GOOOL!
           </span>
@@ -49,7 +57,13 @@ export function FootballPitch({
         aria-atomic="true"
       >
         <span className="font-medium text-accent">Nico: </span>
-        {play.line}
+        {practicing
+          ? feedback === "bad"
+            ? "Vamos resolver juntos. Eu mostro um caminho."
+            : feedback === "ok"
+              ? "Boa! Cada jogada é uma chance de aprender."
+              : "Sem pressa. Se precisar, toque em Me ensina, Nico."
+          : play.line}
       </p>
     </div>
   );

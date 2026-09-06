@@ -14,6 +14,7 @@ import { Route as LabirintoRouteImport } from './routes/labirinto'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PaisRouteImport } from './routes/pais'
 import { Route as PlayRouteImport } from './routes/play'
+import { Route as TreinoRouteImport } from './routes/treino'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const PlayRoute = PlayRouteImport.update({
   path: '/play',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TreinoRoute = TreinoRouteImport.update({
+  id: '/treino',
+  path: '/treino',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
+  '/treino': typeof TreinoRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
+  '/treino': typeof TreinoRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -70,13 +78,28 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
+  '/treino': typeof TreinoRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/labirinto' | '/login' | '/pais' | '/play' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/labirinto'
+    | '/login'
+    | '/pais'
+    | '/play'
+    | '/treino'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/labirinto' | '/login' | '/pais' | '/play' | '/api/auth/$'
+  to:
+    | '/'
+    | '/labirinto'
+    | '/login'
+    | '/pais'
+    | '/play'
+    | '/treino'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
@@ -84,6 +107,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/pais'
     | '/play'
+    | '/treino'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -93,6 +117,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PaisRoute: typeof PaisRoute
   PlayRoute: typeof PlayRoute
+  TreinoRoute: typeof TreinoRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -133,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/treino': {
+      id: '/treino'
+      path: '/treino'
+      fullPath: '/treino'
+      preLoaderRoute: typeof TreinoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -149,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PaisRoute: PaisRoute,
   PlayRoute: PlayRoute,
+  TreinoRoute: TreinoRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

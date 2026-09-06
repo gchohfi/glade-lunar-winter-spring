@@ -5,6 +5,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { AppShell } from "@/components/app-shell";
 import { persistCloud } from "@/components/cloud-sync";
 import { ParentAlerts } from "@/components/parent-alerts";
+import { LearningSummary } from "@/components/learning-summary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -52,8 +53,8 @@ export function ParentPanel() {
   const setSound = usePlayer((s) => s.setSound);
   const setExtraTime = usePlayer((s) => s.setExtraTime);
   const claimPrize = usePlayer((s) => s.claimPrize);
-  const rank = rankById(player.rankId);
   const selectedRank = rankById(PLANETS[player.selectedPlanet]?.rankId ?? player.rankId);
+  const rank = selectedRank;
   const clockMs = timeWithBoost(selectedRank, player.consecutiveFails, player.extraTimeSec * 1000);
   const today = player.days[todayKey()] ?? { answered: 0, correct: 0, missions: 0 };
   const weak = weakestFacts(player);
@@ -283,7 +284,7 @@ export function ParentPanel() {
           </p>
           <Progress
             className="mt-4"
-            value={RANKS.findIndex((r) => r.id === player.rankId) + 1}
+            value={RANKS.findIndex((r) => r.id === selectedRank.id) + 1}
             max={RANKS.length}
           />
           <div className="mt-4 flex flex-wrap gap-2">
@@ -297,7 +298,7 @@ export function ParentPanel() {
                 }}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs font-medium",
-                  r.id === player.rankId
+                  r.id === selectedRank.id
                     ? "border-accent bg-wash text-accent"
                     : "border-line bg-surface text-muted",
                 )}
@@ -357,6 +358,8 @@ export function ParentPanel() {
           </div>
         </Card>
 
+        <LearningSummary />
+
         <Card>
           <h2 className="font-display text-lg">Contas que pedem treino</h2>
           {weak.length === 0 ? (
@@ -383,6 +386,8 @@ export function ParentPanel() {
         <Card>
           <h2 className="font-display text-lg">Como o desafio cresce</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted">
+            <li>Base: multiplicação. Promessa: divisões inteiras. A partir de Titular: metades com vírgula.</li>
+            <li>Treinar com Nico: cinco contas com explicações, sem relógio, sem XP e sem mudar a meta diária ou o prêmio.</li>
             <li>
               Cinco capítulos, doze etapas. Completar uma partida abre a próxima etapa e rende de 1
               a 3 estrelas.

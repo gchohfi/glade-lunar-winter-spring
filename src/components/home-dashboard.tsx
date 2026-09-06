@@ -5,7 +5,7 @@ import { ChampionshipPath } from "@/components/galaxy-map";
 import { MascotScene } from "@/components/mascot-scene";
 import { WeekStrip } from "@/components/week-strip";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { currentStreak } from "@/lib/game/adaptive";
@@ -112,7 +112,7 @@ export function HomeDashboard() {
                   className="w-full gap-3"
                 >
                   <Flag className="size-5" strokeWidth={2} />
-                  {doneToday ? "Treinar mais" : "Entrar em campo"}
+                  {doneToday ? "Jogar outra partida" : "Entrar em campo"}
                 </Button>
               </Link>
               <p className="mt-3 text-sm text-muted">
@@ -120,6 +120,10 @@ export function HomeDashboard() {
                   ? "Pode encerrar. Nosso próximo treino é amanhã."
                   : `${planet.name} · ${formatClock(limitMs)} para esta partida`}
               </p>
+              <Link to="/treino" className={cn(buttonVariants({ variant: "ghost" }), "mt-2 w-full no-underline")}>
+                Treinar com Nico
+              </Link>
+              <p className="text-center text-xs text-muted">Opcional · cinco contas com explicação, sem cronômetro</p>
             </div>
           </div>
           <div className="nico-departure-week">
