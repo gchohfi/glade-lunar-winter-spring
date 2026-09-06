@@ -13,7 +13,7 @@ test("all new field props are real WebP assets, not emoji placeholders", () => {
     assert.equal(bytes.toString("ascii", 8, 12), "WEBP");
     assert.ok(bytes.length < 350_000);
   }
-  for (const path of ["flight-track", "mascot-scene"]) {
+  for (const path of ["field-scene", "mascot-scene"]) {
     const component = read(`src/components/${path}.tsx`);
     assert.match(component, /<FootballBall/);
     assert.doesNotMatch(component, /⚽/);

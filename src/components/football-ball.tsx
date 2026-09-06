@@ -1,10 +1,22 @@
 import { cn } from "@/lib/utils";
+import { cosmeticItem } from "@/lib/game/wardrobe";
+import { useCosmetics } from "@/components/use-cosmetics";
 
 /** A shared, transparent game prop; its contact shadow belongs to the ground. */
-export function FootballBall({ className }: { className?: string }) {
+export function FootballBall({ className, itemId }: { className?: string; itemId?: string }) {
+  const equipped = useCosmetics();
+  const item = cosmeticItem(itemId ?? equipped.ballId);
+  const ball = item?.kind === "ball" ? item : cosmeticItem("ball-classic")!;
   return (
     <span className={cn("football-ball", className)} aria-hidden="true">
-      <img src="/game/football/ball-v2.webp" alt="" width={256} height={256} draggable={false} />
+      <img
+        src={ball.art}
+        data-ball-id={ball.id}
+        alt=""
+        width={384}
+        height={384}
+        draggable={false}
+      />
     </span>
   );
 }

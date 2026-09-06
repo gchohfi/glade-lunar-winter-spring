@@ -811,7 +811,275 @@
     padding: var(--space-5);
   }
 }
+.wardrobe-heading {
+  margin-bottom: var(--space-5);
+}
+.wardrobe-collection {
+  margin-top: var(--space-5);
+}
+@media (min-width: 960px) {
+  .wardrobe-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: var(--space-5);
+    align-items: start;
+  }
+  .wardrobe-workspace .wardrobe-preview {
+    position: sticky;
+    top: var(--space-4);
+  }
+  .wardrobe-collection {
+    margin-top: 0;
+  }
+  .wardrobe-workspace .wardrobe-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.wardrobe-heading h1 {
+  font-size: var(--text-title);
+  margin-top: var(--space-2);
+}
+.wardrobe-heading > p:last-child {
+  margin-top: var(--space-3);
+  max-width: 42rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+.wardrobe-preview {
+  padding: var(--space-4);
+}
+.wardrobe-preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.wardrobe-preview-heading h2 {
+  font-size: 1.125rem;
+}
+.wardrobe-preview-heading > span {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  text-align: right;
+}
+.wardrobe-preview-label {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  margin-top: var(--space-3);
+}
+.wardrobe-tabs {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-wash);
+}
+.wardrobe-tabs [data-state="active"] {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: var(--shadow-soft);
+}
+.wardrobe-tabs button {
+  font-size: 0.875rem;
+}
+.wardrobe-group {
+  margin-top: var(--space-5);
+}
+.wardrobe-group > h2 {
+  font-size: 1.25rem;
+  margin-bottom: var(--space-3);
+}
+.wardrobe-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.wardrobe-item {
+  overflow: hidden;
+  padding: 0;
+}
+.wardrobe-item-art {
+  height: 8rem;
+  display: grid;
+  place-items: center;
+  background: var(--color-wash);
+}
+.wardrobe-item-art img {
+  height: 6rem;
+  width: 6rem;
+  object-fit: contain;
+}
+.wardrobe-item-art[data-kind="field"] img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+.wardrobe-item-info {
+  padding: var(--space-4);
+}
+.wardrobe-item-info h3 {
+  font-size: 1.125rem;
+  margin-top: var(--space-2);
+}
+.wardrobe-item-info > p {
+  min-height: 2.5rem;
+  margin-top: var(--space-2);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+.wardrobe-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-accent);
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+.wardrobe-status[data-status="locked"] {
+  color: var(--color-muted);
+}
+.wardrobe-status[data-status="equipped"] {
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-wash);
+  border-radius: var(--radius-xs);
+}
+.wardrobe-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, var(--color-ink) 58%, transparent);
+  animation: wardrobe-fade var(--motion-quick) var(--ease-out);
+}
+.wardrobe-dialog {
+  position: fixed;
+  z-index: 81;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(42rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-5);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-soft);
+  animation: wardrobe-fade var(--motion-fast) var(--ease-out);
+}
+.wardrobe-dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.wardrobe-dialog-heading h2 {
+  font-size: 1.5rem;
+  margin-top: var(--space-2);
+}
+.wardrobe-requirement {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin: var(--space-5) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+.wardrobe-requirement > svg {
+  flex-shrink: 0;
+  margin-top: var(--space-1);
+  color: var(--color-accent);
+}
+.wardrobe-requirement strong {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.wardrobe-requirement p {
+  margin-top: var(--space-1);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.wardrobe-save-status {
+  min-height: 1.5rem;
+  margin-top: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-accent);
+}
+.next-cosmetic {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.next-cosmetic > img {
+  width: 4rem;
+  height: 4rem;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.next-cosmetic > img[data-kind="field"] {
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+@keyframes wardrobe-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (max-width: 639px) {
+  .wardrobe-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+  .wardrobe-preview {
+    padding: var(--space-3);
+  }
+  .wardrobe-preview-heading {
+    align-items: flex-start;
+  }
+  .wardrobe-preview-heading h2 {
+    font-size: 1rem;
+  }
+  .wardrobe-preview-heading > span {
+    font-size: 0.6875rem;
+    max-width: 8rem;
+  }
+  .wardrobe-item-info {
+    padding: var(--space-3);
+  }
+  .wardrobe-item-info h3 {
+    font-size: 1rem;
+  }
+  .wardrobe-item-info button {
+    padding-inline: var(--space-2);
+    font-size: 0.75rem;
+  }
+  .wardrobe-dialog {
+    padding: var(--space-4);
+  }
+  .wardrobe-dialog-heading h2 {
+    font-size: 1.25rem;
+  }
+  .next-cosmetic {
+    flex-wrap: wrap;
+  }
+  .next-cosmetic > a {
+    width: 100%;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
+  .wardrobe-overlay,
+  .wardrobe-dialog {
+    animation: none;
+  }
   .anim-pop,
   .anim-shake,
   .anim-rise,

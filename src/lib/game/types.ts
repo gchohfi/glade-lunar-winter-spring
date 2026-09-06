@@ -1,13 +1,7 @@
 export type ModeId = "multiplication" | "vocabulary" | "definitions";
 
 export type RankId =
-  | "cadete"
-  | "aprendiz"
-  | "piloto"
-  | "capitao"
-  | "comandante"
-  | "almirante"
-  | "lenda";
+  "cadete" | "aprendiz" | "piloto" | "capitao" | "comandante" | "almirante" | "lenda";
 
 export type FactOp = "mul" | "div";
 
@@ -55,6 +49,8 @@ export type ParentAlert = {
   read: boolean;
 };
 
+export type CosmeticSelection = { ballId: string; fieldId: string };
+
 export type PlayerState = {
   version: 2;
   childName: string;
@@ -81,6 +77,7 @@ export type PlayerState = {
   parentAlerts: ParentAlert[];
   notifyParents: boolean;
   prizeName: string;
+  cosmetics?: CosmeticSelection;
 };
 
 export type RankDef = {
@@ -168,6 +165,7 @@ export function emptyState(): PlayerState {
     parentAlerts: [],
     notifyParents: false,
     prizeName: "",
+    cosmetics: { ballId: "ball-classic", fieldId: "field-club" },
   };
 }
 

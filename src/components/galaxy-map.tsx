@@ -3,6 +3,7 @@ import { CHAPTERS, PLANETS } from "@/lib/game/worlds";
 import { formatClock } from "@/lib/game/types";
 import { StarRow } from "@/components/star-row";
 import { cn } from "@/lib/utils";
+import { cosmeticsForStage } from "@/lib/game/wardrobe";
 
 export function ChampionshipPath({
   selected,
@@ -67,6 +68,12 @@ export function ChampionshipPath({
                           : "Disponível para jogar"}
                       {(bestMs[index] ?? 0) > 0 ? " · " + formatClock(bestMs[index]) : ""}
                     </span>
+                    {cosmeticsForStage(index).map((item) => (
+                      <span key={item.id} className="mt-2 block text-xs font-medium text-accent">
+                        {(stars[index] ?? 0) > 0 ? "Conquistado: " : "Conclua e ganhe: "}
+                        {item.name}
+                      </span>
+                    ))}
                   </span>
                 </button>
               );

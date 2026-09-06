@@ -36,6 +36,7 @@ import {
   type Fact,
 } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
+import { newCosmetics, type CosmeticItem } from "@/lib/game/wardrobe";
 
 type Phase = "ready" | "running" | "won" | "lost";
 type Flash = "none" | "ok" | "bad";
@@ -70,6 +71,7 @@ export function MissionPlay() {
   const [elapsed, setElapsed] = useState(0);
   const [delta, setDelta] = useState<ProgressDelta | null>(null);
   const [dailyJustDone, setDailyJustDone] = useState(false);
+  const [earnedCosmetics, setEarnedCosmetics] = useState<CosmeticItem[]>([]);
 
   const queueRef = useRef<Fact[]>([]);
   const startedAtRef = useRef(0);
@@ -133,6 +135,7 @@ export function MissionPlay() {
       setPrizeReady(result.prizeReady);
       setDelta(result.progress);
       setDailyJustDone(result.dailyJustDone);
+      setEarnedCosmetics(newCosmetics(state, result.state));
       setPhase(passed ? "won" : "lost");
       if (passed) {
         if (result.progress.leveledTo || result.progress.unlockedPlanet !== null) playPromote();
@@ -166,6 +169,7 @@ export function MissionPlay() {
   }, [phase, runLimit]);
 
   const begin = () => {
+    setEarnedCosmetics([]);
     unlockAudio();
     if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
     winningRef.current = false;
@@ -413,6 +417,25 @@ export function MissionPlay() {
               etapa
             </p>
           </div>
+        ) : null}
+        {earnedCosmetics.length > 0 ? (
+          <Card className="mt-4 w-full max-w-sm p-4 text-left">
+            <p className="text-xs font-medium text-accent">Nova conquista no Vestiário</p>
+            {earnedCosmetics.map((item) => (
+              <p key={item.id} className="mt-1 font-display text-lg">
+                {item.name}
+              </p>
+            ))}
+            <p className="mt-2 text-sm text-muted">
+              É sua! Você escolhe quando equipar, sem gastar XP.
+            </p>
+            <Link
+              to="/vestiario"
+              className={cn(buttonVariants({ variant: "secondary" }), "mt-3 w-full no-underline")}
+            >
+              Ver minha conquista
+            </Link>
+          </Card>
         ) : null}
         <Card className="mt-5 w-full max-w-sm p-4 text-left">
           <p className="text-sm font-medium text-muted">Nível {level}</p>

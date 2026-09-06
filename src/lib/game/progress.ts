@@ -1,5 +1,6 @@
 import { firstPlanetForRank, PLANETS, shipForLevel } from "./worlds";
 import { emptyState, EXTRA_TIME_OPTIONS, type PlayerState, type RankId } from "./types";
+import { normalizeCosmetics } from "./wardrobe";
 
 export const MAX_LEVEL = 30;
 export const STAR_MAX = 3;
@@ -145,10 +146,7 @@ export function migrateState(raw: Partial<PlayerState> & { version?: number }): 
   const merged = { ...base, ...raw };
   const missions = merged.totalMissionsPassed ?? 0;
   const fromRank = firstPlanetForRank((merged.rankId as RankId) ?? "cadete");
-  const autoFurthest = Math.min(
-    PLANETS.length - 1,
-    Math.max(fromRank, Math.floor(missions / 2)),
-  );
+  const autoFurthest = Math.min(PLANETS.length - 1, Math.max(fromRank, Math.floor(missions / 2)));
   const stars = Array.isArray(merged.planetStars)
     ? [...merged.planetStars]
     : Array.from({ length: PLANETS.length }, () => 0);
@@ -157,10 +155,7 @@ export function migrateState(raw: Partial<PlayerState> & { version?: number }): 
     ? [...merged.planetBestMs]
     : Array.from({ length: PLANETS.length }, () => 0);
   while (bests.length < PLANETS.length) bests.push(0);
-  const furthest = Math.min(
-    PLANETS.length - 1,
-    merged.furthestPlanet ?? autoFurthest,
-  );
+  const furthest = Math.min(PLANETS.length - 1, merged.furthestPlanet ?? autoFurthest);
   const selected = Math.min(furthest, merged.selectedPlanet ?? furthest);
   const level = Math.max(1, merged.level ?? Math.max(1, missions));
   return {
@@ -179,6 +174,7 @@ export function migrateState(raw: Partial<PlayerState> & { version?: number }): 
     parentAlerts: Array.isArray(merged.parentAlerts) ? merged.parentAlerts : [],
     notifyParents: merged.notifyParents ?? false,
     prizeName: typeof merged.prizeName === "string" ? merged.prizeName.slice(0, 40) : "",
+    cosmetics: normalizeCosmetics(merged.cosmetics, { planetStars: stars }),
     rankId: PLANETS[furthest]?.rankId ?? merged.rankId ?? "cadete",
   };
 }

@@ -4,6 +4,7 @@ import { setSoundEnabled } from "./audio";
 import { migrateState } from "./progress";
 import { fireParentNotify } from "./notify";
 import { firstPlanetForRank } from "./worlds";
+import { equipCosmetic as equipCosmeticState } from "./wardrobe";
 import {
   STORAGE_KEY,
   EXTRA_TIME_OPTIONS,
@@ -35,6 +36,7 @@ type PlayerStore = PlayerState & {
   claimPrize: () => void;
   replaceState: (state: PlayerState) => void;
   snapshot: () => PlayerState;
+  equipCosmetic: (id: string) => "equipped" | "unavailable" | "storage-error";
 };
 
 function pickState(s: PlayerState): PlayerState {
@@ -64,6 +66,7 @@ function pickState(s: PlayerState): PlayerState {
     parentAlerts: s.parentAlerts,
     notifyParents: s.notifyParents,
     prizeName: s.prizeName,
+    cosmetics: s.cosmetics,
   });
 }
 
@@ -73,9 +76,10 @@ function readLocal(): PlayerState | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { state?: PlayerState } | PlayerState;
-    const state = parsed && typeof parsed === "object" && "childName" in parsed
-      ? parsed
-      : (parsed as { state?: PlayerState }).state;
+    const state =
+      parsed && typeof parsed === "object" && "childName" in parsed
+        ? parsed
+        : (parsed as { state?: PlayerState }).state;
     if (!state) return null;
     return migrateState(state);
   } catch {
@@ -83,18 +87,28 @@ function readLocal(): PlayerState | null {
   }
 }
 
-function writeLocal(state: PlayerState): void {
-  if (typeof window === "undefined") return;
+function writeLocal(state: PlayerState): boolean {
+  if (typeof window === "undefined") return false;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
   } catch {
-    /* ignore quota */
+    return false;
   }
 }
 
 export const usePlayer = create<PlayerStore>()((set, get) => ({
   ...emptyState(),
   hydrated: false,
+  equipCosmetic: (id) => {
+    if (!get().hydrated) return "unavailable";
+    const current = pickState(get());
+    const next = equipCosmeticState(current, id);
+    if (next === current) return "unavailable";
+    if (!writeLocal(next)) return "storage-error";
+    set({ cosmetics: next.cosmetics });
+    return "equipped";
+  },
   setChildName: (childName) => {
     set({ childName });
     writeLocal(pickState(get()));
@@ -126,9 +140,7 @@ export const usePlayer = create<PlayerStore>()((set, get) => ({
     writeLocal(pickState(get()));
   },
   setExtraTime: (sec) => {
-    const extraTimeSec = (EXTRA_TIME_OPTIONS as readonly number[]).includes(sec)
-      ? sec
-      : 15;
+    const extraTimeSec = (EXTRA_TIME_OPTIONS as readonly number[]).includes(sec) ? sec : 15;
     set({ extraTimeSec });
     writeLocal(pickState(get()));
   },
@@ -170,7 +182,11 @@ export const usePlayer = create<PlayerStore>()((set, get) => ({
 export function hydratePlayer(): void {
   const local = readLocal();
   const current = usePlayer.getState();
-  if (current.hydrated && current.onboarded && current.totalMissionsPassed >= (local?.totalMissionsPassed ?? 0)) {
+  if (
+    current.hydrated &&
+    current.onboarded &&
+    current.totalMissionsPassed >= (local?.totalMissionsPassed ?? 0)
+  ) {
     return;
   }
   if (local) {
