@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { NextCosmetic } from "@/components/next-cosmetic";
 import { currentStreak } from "@/lib/game/adaptive";
 import { unreadAlerts } from "@/lib/game/alerts";
 import { todayDone } from "@/lib/game/daily";
@@ -38,14 +39,22 @@ export function HomeDashboard() {
     <AppShell
       compact
       right={
-        <Link to="/pais" className="text-sm font-medium text-muted no-underline hover:text-ink">
-          Pais
-          {unread > 0 ? (
-            <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-medium text-accent-fg">
-              {unread}
-            </span>
-          ) : null}
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            to="/vestiario"
+            className="text-sm font-medium text-accent no-underline hover:text-ink"
+          >
+            Vestiário
+          </Link>
+          <Link to="/pais" className="text-sm font-medium text-muted no-underline hover:text-ink">
+            Pais
+            {unread > 0 ? (
+              <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-medium text-accent-fg">
+                {unread}
+              </span>
+            ) : null}
+          </Link>
+        </div>
       }
     >
       <div className="anim-rise space-y-6">
@@ -120,10 +129,15 @@ export function HomeDashboard() {
                   ? "Pode encerrar. Nosso próximo treino é amanhã."
                   : `${planet.name} · ${formatClock(limitMs)} para esta partida`}
               </p>
-              <Link to="/treino" className={cn(buttonVariants({ variant: "ghost" }), "mt-2 w-full no-underline")}>
+              <Link
+                to="/treino"
+                className={cn(buttonVariants({ variant: "ghost" }), "mt-2 w-full no-underline")}
+              >
                 Treinar com Nico
               </Link>
-              <p className="text-center text-xs text-muted">Opcional · cinco contas com explicação, sem cronômetro</p>
+              <p className="text-center text-xs text-muted">
+                Opcional · cinco contas com explicação, sem cronômetro
+              </p>
             </div>
           </div>
           <div className="nico-departure-week">
@@ -131,6 +145,7 @@ export function HomeDashboard() {
           </div>
         </Card>
 
+        <NextCosmetic />
         <div>
           <div className="mb-2 flex items-end justify-between gap-3">
             <div>

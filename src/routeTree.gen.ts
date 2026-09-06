@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as PaisRouteImport } from './routes/pais'
 import { Route as PlayRouteImport } from './routes/play'
 import { Route as TreinoRouteImport } from './routes/treino'
+import { Route as VestiarioRouteImport } from './routes/vestiario'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const TreinoRoute = TreinoRouteImport.update({
   path: '/treino',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VestiarioRoute = VestiarioRouteImport.update({
+  id: '/vestiario',
+  path: '/vestiario',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
   '/treino': typeof TreinoRoute
+  '/vestiario': typeof VestiarioRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
   '/treino': typeof TreinoRoute
+  '/vestiario': typeof VestiarioRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/pais': typeof PaisRoute
   '/play': typeof PlayRoute
   '/treino': typeof TreinoRoute
+  '/vestiario': typeof VestiarioRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/pais'
     | '/play'
     | '/treino'
+    | '/vestiario'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/pais'
     | '/play'
     | '/treino'
+    | '/vestiario'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/pais'
     | '/play'
     | '/treino'
+    | '/vestiario'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   PaisRoute: typeof PaisRoute
   PlayRoute: typeof PlayRoute
   TreinoRoute: typeof TreinoRoute
+  VestiarioRoute: typeof VestiarioRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TreinoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vestiario': {
+      id: '/vestiario'
+      path: '/vestiario'
+      fullPath: '/vestiario'
+      preLoaderRoute: typeof VestiarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   PaisRoute: PaisRoute,
   PlayRoute: PlayRoute,
   TreinoRoute: TreinoRoute,
+  VestiarioRoute: VestiarioRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

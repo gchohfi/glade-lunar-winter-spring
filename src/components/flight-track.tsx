@@ -1,5 +1,4 @@
-import { Mascot } from "@/components/mascot";
-import { FootballBall } from "@/components/football-ball";
+import { FieldScene } from "@/components/field-scene";
 import { Check, Flag } from "lucide-react";
 import { footballState, GOALS_PER_MATCH, type PlayFeedback } from "@/lib/game/football";
 
@@ -38,36 +37,7 @@ export function FootballPitch({
             : `Gols ${play.goals}/${GOALS_PER_MATCH}`}
         </p>
       </div>
-      <div className="football-pitch" data-goal={goal}>
-        <img
-          className="pitch-environment"
-          src="/game/football/pitch-v2.webp"
-          alt=""
-          draggable={false}
-        />
-        <div className="pitch-nico-shadow" aria-hidden="true" />
-        <Mascot
-          mood={feedback === "bad" ? "try" : feedback === "ok" ? "win" : "guide"}
-          className="pitch-nico"
-        />
-        <div
-          className="pitch-ball-position"
-          data-ball-position
-          style={{
-            left: [28, 48, 64, 78][ballStep] + "%",
-            top: [84, 78, 73, 65][ballStep] + "%",
-            scale: [1, 0.94, 0.86, 0.72][ballStep],
-          }}
-          aria-hidden="true"
-        >
-          <FootballBall />
-        </div>
-        {goal ? (
-          <span className="pitch-goal-word" aria-hidden="true">
-            GOOOL!
-          </span>
-        ) : null}
-      </div>
+      <FieldScene ballStep={ballStep} feedback={feedback} goal={goal} />
       {!practicing ? (
         <ol className="pitch-sequence" aria-label="Dois passes e um chute fazem um gol">
           {["Primeiro passe", "Segundo passe", "Chute a gol"].map((label, i) => (

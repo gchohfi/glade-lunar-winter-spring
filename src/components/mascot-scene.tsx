@@ -1,6 +1,7 @@
 import { Mascot, type MascotMood } from "@/components/mascot";
 import { FootballBall } from "@/components/football-ball";
-import { STADIUM_ART } from "@/lib/game/worlds";
+import { cosmeticItem } from "@/lib/game/wardrobe";
+import { useCosmetics } from "@/components/use-cosmetics";
 import { cn } from "@/lib/utils";
 
 /** Shared ground, contact shadow and ball make Nico part of the field. */
@@ -13,11 +14,14 @@ export function MascotScene({
   className?: string;
   priority?: boolean;
 }) {
+  const equipped = useCosmetics();
+  const field = cosmeticItem(equipped.fieldId)!;
   return (
     <div className={cn("nico-scene", className)}>
       <img
         className="nico-stadium"
-        src={STADIUM_ART}
+        src={field.sceneArt ?? field.art}
+        data-field-id={field.id}
         alt=""
         draggable={false}
         loading={priority ? "eager" : "lazy"}
