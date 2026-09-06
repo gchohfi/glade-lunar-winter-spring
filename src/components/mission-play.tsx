@@ -6,7 +6,7 @@ import { FootballPitch } from "@/components/flight-track";
 import { MascotScene } from "@/components/mascot-scene";
 import { StarRow } from "@/components/star-row";
 import { persistCloud } from "@/components/cloud-sync";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { drawNext, pickMissionFacts, recycleMiss } from "@/lib/game/adaptive";
@@ -408,6 +408,9 @@ export function MissionPlay() {
           </Card>
         ) : null}
         <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
+          <Link to="/treino" className={cn(buttonVariants({ variant: "secondary" }), "w-full no-underline")}>
+            Treinar com Nico, sem cronômetro
+          </Link>
           {phase === "lost" || !prizeReady ? (
             <Button
               size="lg"

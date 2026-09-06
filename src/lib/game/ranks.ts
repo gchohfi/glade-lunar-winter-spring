@@ -12,7 +12,7 @@ export const RANKS: RankDef[] = [
   {
     id: "cadete",
     name: "Base",
-    blurb: "Do 3 ao 13, com mais contas amigas e tempo de sobra.",
+    blurb: "Multiplicações do 3 ao 13, com mais contas amigas.",
     tables: ALL_TABLES,
     factors: ALL_FACTORS,
     timeLimitMs: 135_000,
@@ -21,7 +21,7 @@ export const RANKS: RankDef[] = [
   {
     id: "aprendiz",
     name: "Promessa",
-    blurb: "Ainda tem calma. Entram divisões e meios.",
+    blurb: "Entram divisões com resultado inteiro. Uma jogada de cada vez.",
     tables: ALL_TABLES,
     factors: ALL_FACTORS,
     timeLimitMs: 113_000,
@@ -30,7 +30,7 @@ export const RANKS: RankDef[] = [
   {
     id: "piloto",
     name: "Titular",
-    blurb: "Quinze acertos em um minuto e meio. Vezes e dividido.",
+    blurb: "Vezes, dividido e metades com vírgula. Quinze acertos por partida.",
     tables: ALL_TABLES,
     factors: ALL_FACTORS,
     timeLimitMs: 90_000,

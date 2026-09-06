@@ -34,6 +34,9 @@ export function allFactsForRank(rankId: RankId): Fact[] {
       pushUnique(facts, seen, { a, b, op: "mul" });
     }
   }
+  // Base builds multiplication first. Promessa adds exact divisions;
+  // decimal halves enter from Titular onward. Existing records stay intact.
+  if (rankId === "cadete") return facts;
   for (const table of rank.tables) {
     for (const factor of rank.factors) {
       const product = table * factor;
@@ -46,8 +49,8 @@ export function allFactsForRank(rankId: RankId): Fact[] {
       }
     }
   }
+  if (rankId === "aprendiz") return facts;
   for (let n = 11; n <= 99; n += 2) {
-    if (rankId === "cadete" && n > 31) continue;
     pushUnique(facts, seen, { a: n, b: 2, op: "div" });
   }
   return facts;
