@@ -3,3 +3,6 @@ node_modules/
 .github_repo
 .env
 .env.*
+
+# Generated deployments must be rebuilt from source, never shipped stale.
+.vercel/
