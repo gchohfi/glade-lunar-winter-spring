@@ -1,672 +1,436 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Clock, Coins, Target, X } from "lucide-react";
-import { NumberPad } from "@/components/number-pad";
-import { useGameDate } from "@/components/use-game-date";
-import { FootballPitch } from "@/components/flight-track";
-import { MascotScene } from "@/components/mascot-scene";
-import { StarRow } from "@/components/star-row";
-import { persistCloud } from "@/components/cloud-sync";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { drawNext, pickMissionFacts, recycleMiss } from "@/lib/game/adaptive";
-import { coachedMissionFacts, evaluateFocus, getDailyCoach } from "@/lib/game/coaching";
-import { clubSummary } from "@/lib/game/club";
-import type { ProgressDelta } from "@/lib/game/progress";
-import { xpToNext } from "@/lib/game/progress";
-import {
-  playCorrect,
-  playFail,
-  playPromote,
-  playTap,
-  playWin,
-  playWrong,
-  unlockAudio,
-} from "@/lib/game/audio";
-import { rankById, timeWithBoost } from "@/lib/game/ranks";
-import { usePlayer } from "@/lib/game/store";
-import { planetAt } from "@/lib/game/worlds";
-import {
-  TARGET_CORRECT,
-  factKey,
-  factAnswer,
-  factOp,
-  parseGuess,
-  formatAnswer,
-  formatClock,
-  todayKey,
-  type Fact,
-} from "@/lib/game/types";
-import { cn } from "@/lib/utils";
-import { newCosmetics, type CosmeticItem } from "@/lib/game/wardrobe";
-
-type Phase = "ready" | "running" | "won" | "lost";
-type Flash = "none" | "ok" | "bad";
+import { ArrowLeft, Clock, Coins, Pause, Trophy } from "lucide-react";
+import { AppShell } from "./app-shell";
+import { CourseConnectionGate } from "./course-connection-gate";
+import { FieldScene } from "./field-scene";
+import { NumberPad } from "./number-pad";
+import { Button, buttonVariants } from "./ui/button";
+import { useCourseSync, rememberAnswerTime } from "@/lib/game/connected-store";
+import { courseMatch, nextCourseMatch, normalizeCourse, CHAMPIONSHIPS } from "@/lib/game/course";
+import { equationText, explainFact } from "@/lib/game/learning";
+import { emptyState, formatClock, parseGuess, formatAnswer, factKey } from "@/lib/game/types";
+import { playCorrect, playWrong, playWin, unlockAudio } from "@/lib/game/audio";
+import type { CourseCommand, ShotDirection } from "@/lib/game/course-types";
 
 export function MissionPlay() {
-  const gameDate = useGameDate();
+  const sync = useCourseSync();
   const navigate = useNavigate();
-  const snapshot = usePlayer((s) => s.snapshot);
-  const applyMission = usePlayer((s) => s.applyMission);
-  const consecutiveFails = usePlayer((s) => s.consecutiveFails);
-  const selectedPlanet = usePlayer((s) => s.selectedPlanet);
-  const setPlanet = usePlayer((s) => s.setPlanet);
-  const level = usePlayer((s) => s.level);
-  const xp = usePlayer((s) => s.xp);
-  const extraTimeSec = usePlayer((s) => s.extraTimeSec);
-  const planetBestMs = usePlayer((s) => s.planetBestMs);
-  const planet = planetAt(selectedPlanet);
-  const rank = rankById(planet.rankId);
-  const defaultLimit = timeWithBoost(rank, consecutiveFails, extraTimeSec * 1000);
-
-  const [phase, setPhase] = useState<Phase>("ready");
-  const [flash, setFlash] = useState<Flash>("none");
-  const [flashKey, setFlashKey] = useState(0);
+  const state = sync.envelope?.state ?? emptyState();
+  const attempt = sync.envelope?.activeAttempt;
+  const course = normalizeCourse(state);
+  const match =
+    courseMatch(attempt?.matchId ?? course.lastResult?.matchId ?? course.selectedMatchId) ??
+    nextCourseMatch(state);
+  const cup = CHAMPIONSHIPS.find((c) => c.id === match.championshipId)!;
+  const result = !attempt ? course.lastResult : null;
   const [typed, setTyped] = useState("");
-  const [correct, setCorrect] = useState(0);
-  const [wrong, setWrong] = useState(0);
-  const [combo, setCombo] = useState(0);
-  const [remaining, setRemaining] = useState(defaultLimit);
-  const [runLimit, setRunLimit] = useState(defaultLimit);
-  const [fact, setFact] = useState<Fact>({ a: 3, b: 4 });
-  const [reveal, setReveal] = useState<number | null>(null);
-  const [prizeReady, setPrizeReady] = useState(false);
+  const [localPaused, setLocalPaused] = useState(true);
   const [elapsed, setElapsed] = useState(0);
-  const [delta, setDelta] = useState<ProgressDelta | null>(null);
-  const [dailyJustDone, setDailyJustDone] = useState(false);
-  const [earnedCosmetics, setEarnedCosmetics] = useState<CosmeticItem[]>([]);
-  const [coinsGained, setCoinsGained] = useState(0);
-  const [focusCorrect, setFocusCorrect] = useState(0);
-  const [retainedFacts, setRetainedFacts] = useState(0);
-  const [localSaved, setLocalSaved] = useState(true);
-  const coachRef = useRef<ReturnType<typeof getDailyCoach> | null>(null);
-  const coach =
-    (phase !== "ready" && coachRef.current) || getDailyCoach(snapshot(), rank.id, gameDate);
-  const club = clubSummary(usePlayer(), todayKey(gameDate));
-
-  const queueRef = useRef<Fact[]>([]);
-  const startedAtRef = useRef(0);
-  const qStartRef = useRef(0);
-  const limitRef = useRef(defaultLimit);
-  const triedRef = useRef<Array<{ fact: Fact; ok: boolean; ms: number }>>([]);
-  const endedRef = useRef(false);
-  const factRef = useRef(fact);
-  const typedRef = useRef("");
-  const correctRef = useRef(0);
-  const wrongRef = useRef(0);
-  const comboRef = useRef(0);
-  const bestComboRef = useRef(0);
-  const revealRef = useRef<number | null>(null);
-  const phaseRef = useRef<Phase>(phase);
-  const revealTimer = useRef<number | null>(null);
-  const winningRef = useRef(false);
-  const answerLockedRef = useRef(false);
-
-  useEffect(
-    () => () => {
-      endedRef.current = true;
-      if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
-    },
-    [],
+  const [shot, setShot] = useState<ShotDirection | null>(null);
+  const segment = useRef(0);
+  const segmentStart = useRef<number | null>(null);
+  const [notice, setNotice] = useState("");
+  const owned = Boolean(attempt && attempt.ownerDeviceId === sync.deviceId);
+  const ready = sync.status === "ready" && !sync.legacyAvailable;
+  const answering = Boolean(
+    ready && owned && !sync.busy && !localPaused && !shot && attempt?.phase === "answer",
   );
 
-  factRef.current = fact;
-  typedRef.current = typed;
-  correctRef.current = correct;
-  wrongRef.current = wrong;
-  comboRef.current = combo;
-  revealRef.current = reveal;
-  phaseRef.current = phase;
+  const consumeTime = useCallback(() => {
+    if (segmentStart.current !== null)
+      segment.current = Math.max(segment.current, performance.now() - segmentStart.current);
+    const current = useCourseSync.getState().envelope?.activeAttempt;
+    const remaining = current ? current.timeLimitMs - current.mathElapsedMs : 0;
+    const ms = Math.min(remaining, Math.max(0, Math.round(segment.current)));
+    segmentStart.current = null;
+    segment.current = 0;
+    setElapsed(0);
+    return ms;
+  }, []);
 
-  const finish = useCallback(
-    (passed: boolean) => {
-      if (endedRef.current) return;
-      endedRef.current = true;
-      if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
-      const finishedAt = Date.now();
-      const cap = limitRef.current;
-      const elapsedMs = Math.min(cap, finishedAt - startedAtRef.current);
-      const state = snapshot();
-      const p = planetAt(state.selectedPlanet);
-      const result = applyMission({
-        mode: "multiplication",
-        rankId: p.rankId,
-        startedAt: startedAtRef.current,
-        finishedAt,
-        elapsedMs,
-        timeLimitMs: cap,
-        correct: correctRef.current,
-        wrong: wrongRef.current,
-        passed,
-        factsTried: triedRef.current,
-        bestCombo: bestComboRef.current,
-        planetIndex: state.selectedPlanet,
-      });
-      setElapsed(elapsedMs);
-      setPrizeReady(result.prizeReady);
-      setDelta(result.progress);
-      setDailyJustDone(result.dailyJustDone);
-      setCoinsGained(result.clubReward.coinsGained);
-      setFocusCorrect(result.focus.correct);
-      setRetainedFacts(result.retainedFacts);
-      setLocalSaved(result.localSaved);
-      setEarnedCosmetics(newCosmetics(state, result.state));
-      setPhase(passed ? "won" : "lost");
-      if (passed) {
-        if (result.progress.leveledTo || result.progress.unlockedPlanet !== null) playPromote();
-        else playWin();
-      } else {
-        playFail();
-      }
-      persistCloud();
-    },
-    [applyMission, snapshot],
-  );
+  const act = useCallback(async (command: CourseCommand) => {
+    setNotice("");
+    const response = await useCourseSync.getState().send(command);
+    if (response?.status === "conflict" || response?.status === "rejected") setLocalPaused(true);
+    return response;
+  }, []);
 
-  const finishRef = useRef(finish);
-  finishRef.current = finish;
-
+  // Only visible, independent response time runs. Every segment is journaled locally
+  // and checkpointed to the account; pending commands retain their operation id.
   useEffect(() => {
-    if (phase !== "running") return;
-    const t0 = performance.now();
+    if (!answering || !attempt || !sync.envelope) return;
+    segmentStart.current = performance.now();
     let raf = 0;
+    let lastJournal = 0;
     const tick = (now: number) => {
-      const left = Math.max(0, limitRef.current - (now - t0));
-      setRemaining(left);
-      if (left <= 0) {
-        if (!winningRef.current) finishRef.current(false);
+      if (segmentStart.current === null) return;
+      segment.current = now - segmentStart.current;
+      setElapsed(segment.current);
+      if (now - lastJournal > 100) {
+        if (!rememberAnswerTime(attempt.id, sync.envelope!.revision, Math.round(segment.current))) {
+          setLocalPaused(true);
+          setNotice("Leitura pausada: não conseguimos guardar a interrupção neste aparelho.");
+          return;
+        }
+        lastJournal = now;
+      }
+      const remaining = attempt.timeLimitMs - attempt.mathElapsedMs - segment.current;
+      if (remaining <= 0 || segment.current >= 2000) {
+        const elapsedMs = consumeTime();
+        void act({
+          type: remaining <= 0 ? "expire" : "checkpoint",
+          attemptId: attempt.id,
+          elapsedMs,
+        });
         return;
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [phase, runLimit]);
-
-  const begin = () => {
-    setEarnedCosmetics([]);
-    setCoinsGained(0);
-    setFocusCorrect(0);
-    setRetainedFacts(0);
-    setLocalSaved(true);
-    unlockAudio();
-    if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
-    winningRef.current = false;
-    endedRef.current = false;
-    answerLockedRef.current = false;
-    setFlash("none");
-    triedRef.current = [];
-    comboRef.current = 0;
-    bestComboRef.current = 0;
-    const state = snapshot();
-    const p = planetAt(state.selectedPlanet);
-    const r = rankById(p.rankId);
-    const missionLimit = timeWithBoost(r, state.consecutiveFails, state.extraTimeSec * 1000);
-    limitRef.current = missionLimit;
-    setRunLimit(missionLimit);
-    const runStartedAt = Date.now();
-    const runState = { ...state, rankId: p.rankId };
-    coachRef.current = getDailyCoach(runState, p.rankId, new Date(runStartedAt));
-    const deck = coachedMissionFacts(runState, new Date(runStartedAt));
-    const first = deck[0] ?? { a: 3, b: 4 };
-    queueRef.current = deck.slice(1);
-    factRef.current = first;
-    correctRef.current = 0;
-    wrongRef.current = 0;
-    setFact(first);
-    setTyped("");
-    setCorrect(0);
-    setWrong(0);
-    setCombo(0);
-    setReveal(null);
-    setRemaining(missionLimit);
-    setPrizeReady(false);
-    setDelta(null);
-    setDailyJustDone(false);
-    startedAtRef.current = runStartedAt;
-    qStartRef.current = performance.now();
-    setPhase("running");
-  };
-
-  const record = (ok: boolean) => {
-    const ms = performance.now() - qStartRef.current;
-    triedRef.current.push({ fact: factRef.current, ok, ms });
-    if (coachRef.current)
-      setFocusCorrect(evaluateFocus(coachRef.current, triedRef.current).correct);
-  };
-
-  const goNext = (ok: boolean, missed?: Fact) => {
-    if (endedRef.current) return;
-    answerLockedRef.current = false;
-    qStartRef.current = performance.now();
-    setTyped("");
-    typedRef.current = "";
-    setReveal(null);
-    setFlash("none");
-    if (!ok && missed) {
-      queueRef.current = recycleMiss(queueRef.current, missed);
-    }
-    if (queueRef.current.length < 2) {
-      const extra = pickMissionFacts({
-        ...snapshot(),
-        rankId: planetAt(snapshot().selectedPlanet).rankId,
-      }).filter((f) => factKey(f) !== factKey(factRef.current));
-      queueRef.current = [...queueRef.current, ...extra];
-    }
-    const drawn = drawNext(queueRef.current, factRef.current);
-    queueRef.current = drawn.queue;
-    factRef.current = drawn.fact;
-    setFact(drawn.fact);
-  };
-
-  const submit = (raw?: string) => {
-    if (phaseRef.current !== "running" || endedRef.current || answerLockedRef.current) return;
-    const value = (raw ?? typedRef.current).trim();
-    if (!value) return;
-    const guess = parseGuess(value);
-    if (!Number.isFinite(guess)) return;
-    const current = factRef.current;
-    const answer = factAnswer(current);
-    answerLockedRef.current = true;
-    if (guess === answer) {
-      record(true);
-      playCorrect();
-      setFlash("ok");
-      setFlashKey((k) => k + 1);
-      correctRef.current += 1;
-      comboRef.current += 1;
-      bestComboRef.current = Math.max(bestComboRef.current, comboRef.current);
-      setCorrect(correctRef.current);
-      setCombo(comboRef.current);
-      if (correctRef.current >= TARGET_CORRECT) {
-        winningRef.current = true;
-        revealTimer.current = window.setTimeout(() => finishRef.current(true), 700);
-      } else {
-        revealTimer.current = window.setTimeout(
-          () => goNext(true),
-          correctRef.current % 3 === 0 ? 650 : 350,
-        );
-      }
-    } else {
-      record(false);
-      playWrong();
-      wrongRef.current += 1;
-      comboRef.current = 0;
-      setWrong(wrongRef.current);
-      setCombo(0);
-      setFlash("bad");
-      setFlashKey((k) => k + 1);
-      setReveal(answer);
-      if (revealTimer.current) window.clearTimeout(revealTimer.current);
-      revealTimer.current = window.setTimeout(() => goNext(false, current), 900);
-    }
-  };
-
-  const onDigit = (d: string) => {
-    if (phaseRef.current !== "running" || endedRef.current || answerLockedRef.current) return;
-    if (!/^[0-9,]$/.test(d) || typedRef.current.length >= 5) return;
-    if (d === "," && typedRef.current.includes(",")) return;
-    playTap();
-    const next = typedRef.current + d;
-    typedRef.current = next;
-    setTyped(next);
-  };
-
-  const onBack = () => {
-    if (phaseRef.current !== "running" || endedRef.current || answerLockedRef.current) return;
-    const next = typedRef.current.slice(0, -1);
-    typedRef.current = next;
-    setTyped(next);
-  };
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (phaseRef.current === "ready" && (e.key === "Enter" || e.key === " ")) {
-        e.preventDefault();
-        begin();
-        return;
-      }
-      if (phaseRef.current !== "running") return;
-      if ((e.key >= "0" && e.key <= "9") || e.key === "," || e.key === ".") {
-        e.preventDefault();
-        onDigit(e.key === "." ? "," : e.key);
-      } else if (e.key === "Backspace") {
-        e.preventDefault();
-        onBack();
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        submit();
+    return () => {
+      cancelAnimationFrame(raf);
+      if (segmentStart.current !== null) {
+        const spent = performance.now() - segmentStart.current;
+        segment.current = spent;
+        rememberAnswerTime(attempt.id, sync.envelope!.revision, Math.round(spent));
+        segmentStart.current = null;
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [answering, attempt, sync.envelope, act, consumeTime]);
 
-  const urgent = remaining < 10_000;
-  const ratio = remaining / runLimit;
-  const bestHere = planetBestMs[selectedPlanet] ?? 0;
+  const pause = useCallback(async () => {
+    const current = useCourseSync.getState().envelope?.activeAttempt;
+    setLocalPaused(true);
+    if (!current || current.ownerDeviceId !== useCourseSync.getState().deviceId) return;
+    if (current.phase === "paused") return;
+    const elapsedMs = consumeTime();
+    rememberAnswerTime(current.id, useCourseSync.getState().envelope!.revision, elapsedMs);
+    if (useCourseSync.getState().status === "ready" && !useCourseSync.getState().busy)
+      await act({ type: "pause", attemptId: current.id, elapsedMs });
+  }, [act, consumeTime]);
 
-  if (phase === "ready") {
-    return (
-      <div className="match-entry-page">
-        <div className="match-entry-card">
-          <MascotScene mood="guide" className="nico-scene-ready" priority />
-          <div className="match-entry-content">
-            <p className="match-eyebrow">Missão Tabuada · vestiário</p>
-            <p className="mt-4 text-sm font-medium text-muted">
-              {rank.name} · Nível {level}
-            </p>
-            <h1 className="mt-2 font-display text-title">{planet.name}</h1>
-            <p className="mt-3 max-w-sm text-muted">
-              O Nico entra em campo com você. Resolva a conta para trocar passes e chegar ao gol.
-            </p>
-            <div className="match-entry-stats">
-              <div>
-                <strong>15</strong>
-                <span>acertos</span>
-              </div>
-              <div>
-                <strong>5</strong>
-                <span>gols</span>
-              </div>
-              <div>
-                <strong>{formatClock(defaultLimit)}</strong>
-                <span>para jogar</span>
-              </div>
-            </div>
-            <p className="text-sm text-muted">
-              Dois passes e um chute fazem um gol. Digite a resposta e toque em Confirmar.
-            </p>
-            <Card className="mt-4 p-4">
-              <p className="flex items-center gap-2 text-sm font-medium text-accent">
-                <Target className="size-4" aria-hidden="true" />
-                {coach.focusLabel}
-              </p>
-              <p className="mt-2 text-sm text-muted">{coach.description}</p>
-              <p className="mt-2 text-sm">
-                Três contas especiais. Acerte na primeira tentativa, sem ver a resposta.
-              </p>
-              <p className="mt-2 text-xs text-muted">
-                {club.missionRewarded
-                  ? "As moedas da missão de hoje já são suas. Pode jogar só por diversão."
-                  : "Partida completa: 20 moedas. Bônus de foco: mais 10. Uma vez por dia."}
-              </p>
-            </Card>
-            {bestHere > 0 ? (
-              <p className="mt-2 font-display text-lg tabular-nums">
-                Recorde: {formatClock(bestHere)}
-              </p>
-            ) : null}
-            <Button size="xl" className="mt-8 w-full max-w-sm" onClick={begin}>
-              Jogar
-            </Button>
-            <Link
-              to="/"
-              className="mt-4 block text-sm font-medium text-muted no-underline hover:text-ink"
-            >
-              Voltar ao campeonato
-            </Link>
-          </div>
-        </div>
-      </div>
+  useEffect(() => {
+    const hide = () => {
+      if (document.hidden) void pause();
+    };
+    const leave = () => {
+      void pause();
+    };
+    document.addEventListener("visibilitychange", hide);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      document.removeEventListener("visibilitychange", hide);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [pause]);
+
+  useEffect(() => {
+    if (sync.status !== "ready") setLocalPaused(true);
+  }, [sync.status]);
+  const currentFactKey = attempt?.fact ? factKey(attempt.fact) : null;
+  useEffect(() => {
+    setTyped("");
+  }, [attempt?.id, currentFactKey, attempt?.feedback]);
+  useEffect(() => {
+    if (!shot) return;
+    const id = window.setTimeout(() => setShot(null), 800);
+    return () => window.clearTimeout(id);
+  }, [shot]);
+
+  const submit = useCallback(async () => {
+    if (!answering || !attempt || !Number.isFinite(parseGuess(typed))) return;
+    const response = await act({
+      type: "answer",
+      attemptId: attempt.id,
+      guess: parseGuess(typed),
+      elapsedMs: consumeTime(),
+    });
+    if (response?.activeAttempt?.feedback === "correct") playCorrect();
+    else if (response?.activeAttempt?.feedback === "incorrect") playWrong();
+  }, [answering, attempt, typed, act, consumeTime]);
+  const digit = useCallback(
+    (value: string) => {
+      if (!answering) return;
+      setTyped((previous) =>
+        previous.length >= 6 || (value === "," && previous.includes(","))
+          ? previous
+          : previous + value,
+      );
+    },
+    [answering],
+  );
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (
+        !answering ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.target instanceof HTMLInputElement
+      )
+        return;
+      if (/^[0-9]$/.test(event.key)) {
+        event.preventDefault();
+        digit(event.key);
+      } else if (event.key === "," || event.key === ".") {
+        event.preventDefault();
+        digit(",");
+      } else if (event.key === "Backspace") {
+        event.preventDefault();
+        setTyped((v) => v.slice(0, -1));
+      } else if (event.key === "Enter" && !(event.target instanceof HTMLButtonElement)) {
+        event.preventDefault();
+        void submit();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        void pause();
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [answering, digit, submit, pause]);
+
+  const startOrResume = async () => {
+    unlockAudio();
+    // Reset before the server reply can mount a new answering segment. In a retry,
+    // localPaused may already be false; resetting afterwards would stop its RAF.
+    consumeTime();
+    setLocalPaused(true);
+    const response = await act(
+      attempt
+        ? { type: "resume", attemptId: attempt.id, takeover: !owned }
+        : { type: "start", matchId: match.id },
     );
-  }
-
-  if (phase === "won" || phase === "lost") {
-    const need = xpToNext(level);
-    const nextPlanet =
-      delta?.unlockedPlanet !== null && delta?.unlockedPlanet !== undefined
-        ? planetAt(delta.unlockedPlanet)
-        : null;
-    return (
-      <div className="paper-grid flex min-h-dvh flex-col items-center justify-center px-4 py-10 text-center">
-        <MascotScene
-          mood={phase === "won" ? "win" : "try"}
-          className="nico-scene-result"
-          priority
-        />
-        <p className="mt-2 text-sm font-medium text-accent">
-          {phase === "won" ? "Nico comemora com você" : "Nico continua ao seu lado"}
-        </p>
-        <h1 className="mt-2 font-display text-title">
-          {phase === "won"
-            ? delta?.leveledTo
-              ? `Nível ${delta.leveledTo}!`
-              : "Cinco gols. Que partida!"
-            : "Vamos tentar juntos de novo?"}
-        </h1>
-        <p className="mt-2 max-w-sm text-muted">
-          {phase === "won"
-            ? `Quinze acertos em ${formatClock(elapsed)}. +${delta?.xpGained ?? 0} XP.`
-            : `Você chegou a ${correct} de ${TARGET_CORRECT} acertos. Esse treino valeu +${delta?.xpGained ?? 0} XP. Uma conta de cada vez, a gente chega lá.`}
-        </p>
-        {phase === "won" && dailyJustDone ? (
-          <p className="mt-2 max-w-sm font-display text-accent">
-            Treino de hoje cumprido. Pode encerrar e voltar quando quiser.
-          </p>
-        ) : null}
-        <Card className="mt-4 w-full max-w-sm p-4 text-left" aria-label="O que você conquistou">
-          {!localSaved ? (
-            <p role="alert" className="mb-3 text-sm text-bad">
-              Não conseguimos salvar neste aparelho. As conquistas estão nesta sessão; peça ajuda a
-              um adulto antes de fechar o jogo.
-            </p>
-          ) : null}
-          <p className="flex items-center gap-2 font-display text-lg text-accent">
-            <Coins className="size-5" aria-hidden="true" />
-            {coinsGained > 0 ? `+${coinsGained} moedas do clube` : "Cada jogada ajuda a aprender"}
-          </p>
-          <p className="mt-2 text-sm">
-            {coach.focusLabel}: {focusCorrect}/3 contas certas na primeira tentativa.
-          </p>
-          {retainedFacts > 0 ? (
-            <p className="mt-2 text-sm text-muted">
-              Você lembrou {retainedFacts} conta{retainedFacts > 1 ? "s" : ""} que já tinha acertado
-              em outro dia.
-            </p>
-          ) : (
-            <p className="mt-2 text-sm text-muted">
-              Vamos reencontrar essas contas em outros dias para ver o que ficou na memória.
-            </p>
-          )}
-          <p className="mt-3 text-sm text-muted">
-            {phase === "won"
-              ? "Seu XP continua inteiro. As moedas servem só para escolher o visual do seu clube."
-              : "Nada do que você conquistou foi perdido. O treino com explicações está disponível, sem cronômetro."}
-          </p>
-        </Card>
-        {phase === "won" && delta?.isRecord ? (
-          <p className="mt-1 font-display text-accent">Novo recorde de tempo!</p>
-        ) : null}
-        {phase === "won" ? (
-          <div className="mt-4 space-y-1">
-            <StarRow value={delta?.starsEarned ?? 0} />
-            <p className="text-sm text-muted">
-              {delta?.starsEarned ?? 0} estrela{(delta?.starsEarned ?? 0) === 1 ? "" : "s"} nesta
-              etapa
-            </p>
-          </div>
-        ) : null}
-        {earnedCosmetics.length > 0 ? (
-          <Card className="mt-4 w-full max-w-sm p-4 text-left">
-            <p className="text-xs font-medium text-accent">Nova conquista no Vestiário</p>
-            {earnedCosmetics.map((item) => (
-              <p key={item.id} className="mt-1 font-display text-lg">
-                {item.name}
-              </p>
-            ))}
-            <p className="mt-2 text-sm text-muted">
-              É sua! Você escolhe quando equipar, sem gastar XP.
-            </p>
-            <Link
-              to="/vestiario"
-              className={cn(buttonVariants({ variant: "secondary" }), "mt-3 w-full no-underline")}
-            >
-              Ver minha conquista
-            </Link>
-          </Card>
-        ) : null}
-        <Card className="mt-5 w-full max-w-sm p-4 text-left">
-          <p className="text-sm font-medium text-muted">Nível {level}</p>
-          <Progress className="mt-2" value={xp} max={need} />
-          <p className="mt-2 text-sm tabular-nums text-muted">
-            {xp} / {need} XP
-          </p>
-          {nextPlanet ? <p className="mt-3 font-display">Nova etapa: {nextPlanet.name}</p> : null}
-          {delta?.newShipName ? (
-            <p className="mt-1 font-display">Nova conquista: {delta.newShipName}</p>
-          ) : null}
-        </Card>
-        {prizeReady ? (
-          <Card className="mt-4 max-w-sm border-accent/30 bg-wash p-4">
-            <p className="font-display">Dez partidas completas.</p>
-            <p className="mt-1 text-sm text-muted">Celebre com quem combinou o prêmio.</p>
-          </Card>
-        ) : null}
-        <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
-          {phase === "won" ? (
-            <Link
-              to="/vestiario"
-              className={cn(buttonVariants({ size: "lg" }), "w-full no-underline")}
-            >
-              Escolher minha conquista
-            </Link>
-          ) : null}
-          <Link
-            to="/treino"
-            className={cn(buttonVariants({ variant: "secondary" }), "w-full no-underline")}
-          >
-            Treinar com Nico, sem cronômetro
-          </Link>
-          {phase === "lost" || !prizeReady ? (
-            <Button
-              size="lg"
-              variant="secondary"
-              className="w-full"
-              onClick={() => {
-                if (delta?.unlockedPlanet != null) setPlanet(delta.unlockedPlanet);
-                begin();
-              }}
-            >
-              {nextPlanet
-                ? `Jogar: ${nextPlanet.name}`
-                : phase === "won"
-                  ? "Jogar mais, se quiser"
-                  : "Tentar de novo"}
-            </Button>
-          ) : null}
-          {prizeReady ? (
-            <Button size="lg" className="w-full" onClick={() => navigate({ to: "/pais" })}>
-              Ir ao espaço dos pais
-            </Button>
-          ) : null}
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-full"
-            onClick={() => navigate({ to: "/" })}
-          >
-            Meu campeonato
-          </Button>
-        </div>
-      </div>
-    );
-  }
+    if (response?.status === "applied" || response?.status === "duplicate") {
+      setLocalPaused(false);
+    }
+  };
+  const kick = async (direction: ShotDirection) => {
+    if (!attempt || sync.busy) return;
+    setShot(direction);
+    const response = await act({ type: "shoot", attemptId: attempt.id, direction });
+    if (response?.status === "applied" || response?.status === "duplicate") playWin();
+    else setShot(null);
+  };
+  const explanation =
+    attempt?.feedback && attempt.feedback !== "correct" ? explainFact(attempt.fact) : null;
+  const remaining = attempt
+    ? Math.max(0, attempt.timeLimitMs - attempt.mathElapsedMs - elapsed)
+    : course.durationSec * 1000;
 
   return (
-    <div className="match-page">
-      <header className="match-header">
+    <AppShell
+      compact
+      right={
         <Button
-          type="button"
-          variant="secondary"
-          onClick={() => navigate({ to: "/" })}
-          className="match-exit"
-          aria-label="Sair da partida"
+          variant="ghost"
+          disabled={sync.busy}
+          onClick={async () => {
+            await pause();
+            await navigate({ to: "/" });
+          }}
         >
-          <X className="size-5" strokeWidth={2} />
+          <ArrowLeft className="size-4" /> Sair e guardar
         </Button>
-        <div className="match-heading">
-          <p className="match-eyebrow">Missão Tabuada · {rank.name}</p>
-          <h1>{planet.name}</h1>
-        </div>
-        <div className="match-clock">
-          <div className={cn("match-clock-value", urgent && "text-bad")}>
-            <Clock className="size-4" strokeWidth={2} />
-            {formatClock(remaining)}
-          </div>
-          <span className="match-stat-label">restantes</span>
-        </div>
-        <div className="match-answers-count">
-          <strong>
-            {correct}
-            <span>/{TARGET_CORRECT}</span>
-          </strong>
-          <span className="match-stat-label">acertos</span>
-        </div>
-        <div className="match-time-track" aria-hidden="true">
-          <div
-            className={cn(urgent ? "bg-bad" : "bg-accent")}
-            style={{ width: `${Math.max(0, ratio * 100)}%` }}
-          />
-        </div>
-      </header>
-      <div className="mx-auto mission-layout">
-        <section className="match-main">
-          <FootballPitch correct={correct} combo={combo} feedback={flash} />
-          <p
-            className="flex items-center justify-between gap-2 px-2 text-sm text-muted"
-            aria-live="polite"
-          >
-            <span>{coach.focusLabel} · foco da partida</span>
-            <span className="tabular-nums">{focusCorrect}/3</span>
-          </p>
-
-          <div className="mission-question" data-feedback={flash}>
-            <p className="mission-question-label">
-              {factOp(fact) === "div" ? "Divisão" : "Multiplicação"} · resolva a jogada
+      }
+    >
+      <CourseConnectionGate />
+      {ready ? (
+        <div className="course-game">
+          <header className="course-game-heading">
+            <p className="course-eyebrow">
+              {cup.name} · Partida {(match.index % 5) + 1} de 5
             </p>
-            <div className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 font-display tabular-nums tracking-tight">
-              <p
-                key={flashKey}
-                data-equation
-                className={cn(
-                  "mission-equation text-ink whitespace-nowrap",
-                  flash === "ok" && "anim-pop text-ok",
-                  flash === "bad" && "anim-shake text-bad",
-                )}
+            <h1>{match.name}</h1>
+            <p>{match.theme}</p>
+          </header>
+          {result ? (
+            <section className="course-result" aria-live="polite">
+              <FieldScene feedback={result.passed ? "ok" : "none"} goal={result.passed} />
+              <h2>
+                {result.passed ? "Cinco gols. Partida concluída!" : "O tempo das contas terminou"}
+              </h2>
+              <p>
+                {result.passed
+                  ? "Seu avanço está confirmado. A revisão continua nas próximas partidas."
+                  : "Vamos tentar de novo com ajuda nas contas difíceis. Suas conquistas anteriores continuam aqui."}
+              </p>
+              <div className="course-result-score">
+                <Trophy aria-hidden="true" /> {result.goals} {result.goals === 1 ? "gol" : "gols"}
+                {" · "}
+                {result.correct} {result.correct === 1 ? "acerto" : "acertos"}
+              </div>
+              {result.learning ? (
+                <p>
+                  Você resolveu {result.learning.independentCorrect}{" "}
+                  {result.learning.independentCorrect === 1 ? "conta" : "contas"} de primeira nesta
+                  partida, sem ajuda.
+                </p>
+              ) : null}
+              <p className="course-result-reward">
+                <Coins aria-hidden="true" />{" "}
+                {result.coinsGained
+                  ? `+${result.coinsGained} moedas recebidas`
+                  : result.passed
+                    ? "Sem moedas extras nesta partida. A recompensa do dia já foi registrada."
+                    : "Esta tentativa não liberou a próxima partida nem concedeu moedas."}
+              </p>
+              {result.passed ? (
+                <Link to="/" className={buttonVariants({})}>
+                  Ver meu campeonato
+                </Link>
+              ) : (
+                <Button disabled={sync.busy} onClick={() => void startOrResume()}>
+                  Tentar novamente
+                </Button>
+              )}
+              <Link
+                to={result.passed ? "/vestiario" : "/"}
+                className={buttonVariants({ variant: "ghost" })}
               >
-                {fact.a} {factOp(fact) === "div" ? "÷" : "×"} {fact.b}
+                {result.passed ? "Ir ao Vestiário" : "Voltar ao campeonato"}
+              </Link>
+            </section>
+          ) : (
+            <>
+              <div className="course-scoreboard">
+                <span>
+                  <Trophy aria-hidden="true" />
+                  <strong>{attempt?.goals ?? 0}/5</strong> gols
+                </span>
+                <span>{attempt?.correct ?? 0}/15 acertos</span>
+                <span aria-label={`Tempo para responder: ${formatClock(remaining)}`}>
+                  <Clock aria-hidden="true" />
+                  <strong>{formatClock(remaining)}</strong>
+                </span>
+              </div>
+              <div className="course-field" data-shot={shot ?? undefined}>
+                <FieldScene
+                  ballStep={attempt ? attempt.correct % 3 : 0}
+                  feedback={shot ? "ok" : "none"}
+                  goal={Boolean(shot)}
+                />
+              </div>
+              {!attempt || localPaused || !owned || attempt.phase === "paused" ? (
+                <section className="course-game-card">
+                  <h2>
+                    {!attempt
+                      ? "Vamos entrar em campo?"
+                      : !owned
+                        ? "Sua partida está em outro aparelho"
+                        : "Seu jogo está guardado"}
+                  </h2>
+                  <p>
+                    {!attempt
+                      ? "A cada três acertos, escolha onde chutar. Todos os chutes viram gol. O relógio só conta enquanto você responde."
+                      : "Continue com os mesmos gols e o tempo restante. Ajuda e chutes não gastam o relógio."}
+                  </p>
+                  <Button size="lg" disabled={sync.busy} onClick={() => void startOrResume()}>
+                    {!attempt ? "Começar partida" : !owned ? "Continuar aqui" : "Retomar partida"}
+                  </Button>
+                </section>
+              ) : attempt.phase === "shot" || shot ? (
+                <section className="course-game-card course-shot-choice" aria-live="polite">
+                  <h2>{shot ? "Gooool!" : "Seu gol está conquistado!"}</h2>
+                  <p>
+                    {shot
+                      ? "Bela jogada com o Nico."
+                      : "Escolha o canto. Não tem como perder este gol."}
+                  </p>
+                  <div>
+                    {(
+                      [
+                        ["left", "Esquerda"],
+                        ["center", "Centro"],
+                        ["right", "Direita"],
+                      ] as const
+                    ).map(([direction, label]) => (
+                      <Button
+                        key={direction}
+                        disabled={sync.busy || Boolean(shot)}
+                        onClick={() => void kick(direction)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  <small>Relógio pausado</small>
+                </section>
+              ) : attempt.phase === "feedback" ? (
+                <section className="course-game-card course-feedback" aria-live="polite">
+                  <h2>{explanation ? explanation.title : "Bom passe!"}</h2>
+                  {explanation ? (
+                    <>
+                      <p>{explanation.intro}</p>
+                      <div className="course-explanation">
+                        {explanation.parts.map((f, i) => (
+                          <p key={i}>
+                            {equationText(f)} ={" "}
+                            {formatAnswer(f.op === "div" ? f.a / f.b : f.a * f.b)}
+                          </p>
+                        ))}
+                        <strong>{explanation.conclusion}</strong>
+                      </div>
+                      <p>Seu gol não foi retirado. Vamos usar essa ideia na próxima resposta.</p>
+                    </>
+                  ) : (
+                    <p>
+                      {attempt.correct % 3 === 0
+                        ? "Três acertos! Agora é hora do chute."
+                        : `Faltam ${3 - (attempt.correct % 3)} acertos para o próximo gol.`}
+                    </p>
+                  )}
+                  <Button
+                    disabled={sync.busy}
+                    onClick={() => void act({ type: "continue", attemptId: attempt.id })}
+                  >
+                    {attempt.feedback === "help" ? "Entendi · vou tentar" : "Continuar"}
+                  </Button>
+                  <small>Relógio pausado</small>
+                </section>
+              ) : (
+                <section className="course-answer-card" aria-labelledby="course-equation">
+                  <p className="course-eyebrow">Resolva para avançar a bola</p>
+                  <h2
+                    id="course-equation"
+                    data-equation
+                    className="mission-equation course-equation"
+                  >
+                    {equationText(attempt.fact)} <span>=</span>{" "}
+                    <output data-answer aria-label="Sua resposta">
+                      {typed || "?"}
+                    </output>
+                  </h2>
+                  <NumberPad
+                    disabled={!answering}
+                    onDigit={digit}
+                    onBack={() => setTyped((v) => v.slice(0, -1))}
+                    onSubmit={() => void submit()}
+                  />
+                  <div className="course-answer-tools">
+                    <Button
+                      variant="ghost"
+                      disabled={sync.busy}
+                      onClick={() =>
+                        void act({ type: "help", attemptId: attempt.id, elapsedMs: consumeTime() })
+                      }
+                    >
+                      Nico, me ajuda
+                    </Button>
+                    <Button variant="ghost" disabled={sync.busy} onClick={() => void pause()}>
+                      <Pause className="size-4" /> Pausar
+                    </Button>
+                  </div>
+                </section>
+              )}
+              <p className="course-action-status" role="status">
+                {notice}
               </p>
-              <p data-answer className="mission-answer">
-                = {reveal !== null ? formatAnswer(reveal) : typed || "?"}
-              </p>
-            </div>
-            <p className="mission-question-hint">
-              {flash === "bad"
-                ? "Essa é a resposta. Vamos tentar outra jogada."
-                : flash === "ok"
-                  ? "Boa jogada!"
-                  : "Sua resposta faz a bola avançar."}
-            </p>
-          </div>
-        </section>
-
-        <section className="mission-keyboard safe-bottom" aria-label="Sua resposta">
-          <div className="keypad-heading">
-            <p className="match-eyebrow">Seu lance</p>
-            <h2>Qual é a resposta?</h2>
-            <p>Digite os números e confirme a jogada.</p>
-          </div>
-          <NumberPad
-            onDigit={onDigit}
-            onBack={onBack}
-            onSubmit={() => submit()}
-            disabled={flash !== "none"}
-          />
-          <p className="keypad-hint">No computador, use os números e Enter.</p>
-        </section>
-      </div>
-    </div>
+            </>
+          )}
+        </div>
+      ) : null}
+    </AppShell>
   );
 }

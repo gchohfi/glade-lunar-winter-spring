@@ -27,6 +27,7 @@ function loadGame(name) {
 const { footballState } = loadGame("football");
 const { PLANETS, SHIPS, CHAPTERS } = loadGame("worlds");
 const { migrateState, applyRunProgress } = loadGame("progress");
+const { normalizeCourse } = loadGame("course");
 const { factAnswer, parseGuess, guessesMatch, formatAnswer, emptyState, STORAGE_KEY } =
   loadGame("types");
 const { footballAlertText } = loadGame("alerts");
@@ -107,7 +108,10 @@ test("existing saved career, stars, records, prize and facts survive the theme c
     planetStars: [3, 2, 1, 3, 2, 1, 0, 0, 0, 0, 0, 0],
     planetBestMs: [45000, 47000, 52000, 46000, 0, 0, 0, 0, 0, 0, 0, 0],
   };
-  assert.deepEqual(migrateState(structuredClone(original)), original);
+  assert.deepEqual(migrateState(structuredClone(original)), {
+    ...original,
+    course: normalizeCourse(original),
+  });
 });
 test("completion unlocks only the next stage, keeps better records and awards XP", () => {
   const player = emptyState();

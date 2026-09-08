@@ -1,56 +1,41 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { loadProgress, saveProgress } from "@/lib/server/player";
-import { hydratePlayer, usePlayer } from "@/lib/game/store";
+import { useCourseSync } from "@/lib/game/connected-store";
+import { usePlayer } from "@/lib/game/store";
 import { setSoundEnabled, wireAudioUnlock } from "@/lib/game/audio";
 
 export function CloudSync() {
   const { user, isPending } = useCurrentUserState();
-  const hydrated = usePlayer((s) => s.hydrated);
-  const pushed = useRef(false);
-
+  const userId = user && !user.isDevFallback ? user.id : null;
+  const sound = usePlayer((s) => s.sound);
+  const connectedAccount = useCourseSync((s) => s.accountId);
   useEffect(() => {
     wireAudioUnlock();
-    hydratePlayer();
-    const t = window.setTimeout(() => {
-      if (!usePlayer.getState().hydrated) usePlayer.setState({ hydrated: true });
-    }, 200);
-    return () => window.clearTimeout(t);
   }, []);
-
   useEffect(() => {
-    if (hydrated) setSoundEnabled(usePlayer.getState().sound);
-  }, [hydrated]);
-
+    setSoundEnabled(sound);
+  }, [sound]);
   useEffect(() => {
-    if (isPending || !user || !hydrated || pushed.current) return;
-    pushed.current = true;
-    const local = usePlayer.getState().snapshot();
-    void loadProgress()
-      .then(async (remote) => {
-        if (
-          remote &&
-          (remote.totalMissionsPassed > local.totalMissionsPassed ||
-            (remote.totalMissionsPassed === local.totalMissionsPassed &&
-              remote.onboarded &&
-              !local.onboarded))
-        ) {
-          usePlayer.getState().replaceState(remote);
-          return;
-        }
-        if (local.onboarded || local.totalMissionsPassed > 0 || local.childName) {
-          await saveProgress({ data: local });
-        }
-      })
-      .catch(() => {
-        pushed.current = false;
+    if (!isPending) void useCourseSync.getState().connect(userId);
+  }, [isPending, userId, connectedAccount]);
+  useEffect(() => {
+    const online = () => void useCourseSync.getState().refresh();
+    const offline = () =>
+      useCourseSync.setState({
+        status: "offline",
+        message: "Sem conexão. A partida está pausada.",
       });
-  }, [user, isPending, hydrated]);
-
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+    };
+  }, []);
   return null;
 }
 
+// Old screens may request a refresh, but cannot overwrite a cloud snapshot.
 export function persistCloud(): void {
-  const state = usePlayer.getState().snapshot();
-  void saveProgress({ data: state }).catch(() => undefined);
+  void useCourseSync.getState().refresh();
 }

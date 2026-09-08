@@ -73,6 +73,7 @@ function pickState(s: PlayerState): PlayerState {
     prizeName: s.prizeName,
     cosmetics: s.cosmetics,
     club: s.club,
+    course: s.course,
   });
 }
 

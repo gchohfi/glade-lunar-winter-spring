@@ -72,13 +72,33 @@ test("Missão Tabuada applies auth then game migrations once, in order", () => {
   const paths = readdirSync(join(projectRoot(), "migrations"));
   assert.deepEqual(
     pendingMigrations(paths, []).map(({ name }) => name),
-    ["0001_auth.sql", "0002_tabuada.sql"],
+    [
+      "0001_auth.sql",
+      "0002_tabuada.sql",
+      "0003_course_sync.sql",
+      "0004_parent_evidence.sql",
+      "0005_legacy_attempt_archive.sql",
+    ],
   );
   assert.deepEqual(
     pendingMigrations(paths, [AUTH_MIGRATION]).map(({ name }) => name),
-    ["0002_tabuada.sql"],
+    [
+      "0002_tabuada.sql",
+      "0003_course_sync.sql",
+      "0004_parent_evidence.sql",
+      "0005_legacy_attempt_archive.sql",
+    ],
   );
-  assert.deepEqual(pendingMigrations(paths, [AUTH_MIGRATION, "0002_tabuada.sql"]), []);
+  assert.deepEqual(
+    pendingMigrations(paths, [
+      AUTH_MIGRATION,
+      "0002_tabuada.sql",
+      "0003_course_sync.sql",
+      "0004_parent_evidence.sql",
+      "0005_legacy_attempt_archive.sql",
+    ]),
+    [],
+  );
 });
 
 test("this workspace's auth schema copy is byte-identical to its source", () => {

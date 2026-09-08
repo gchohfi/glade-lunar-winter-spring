@@ -2,6 +2,7 @@ import { firstPlanetForRank, PLANETS, shipForLevel } from "./worlds";
 import { emptyState, EXTRA_TIME_OPTIONS, type PlayerState, type RankId } from "./types";
 import { normalizeCosmetics } from "./wardrobe";
 import { normalizeClub } from "./club";
+import { normalizeCourse } from "./course";
 
 export const MAX_LEVEL = 30;
 export const STAR_MAX = 3;
@@ -160,6 +161,7 @@ export function migrateState(raw: Partial<PlayerState> & { version?: number }): 
   const selected = Math.min(furthest, merged.selectedPlanet ?? furthest);
   const level = Math.max(1, merged.level ?? Math.max(1, missions));
   const club = normalizeClub(merged.club);
+  const course = normalizeCourse({ ...merged, club });
   return {
     ...merged,
     version: 2,
@@ -177,7 +179,8 @@ export function migrateState(raw: Partial<PlayerState> & { version?: number }): 
     notifyParents: merged.notifyParents ?? false,
     prizeName: typeof merged.prizeName === "string" ? merged.prizeName.slice(0, 40) : "",
     club,
-    cosmetics: normalizeCosmetics(merged.cosmetics, { planetStars: stars, club }),
+    course,
+    cosmetics: normalizeCosmetics(merged.cosmetics, { planetStars: stars, club, course }),
     rankId: PLANETS[furthest]?.rankId ?? merged.rankId ?? "cadete",
   };
 }

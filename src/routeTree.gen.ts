@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CampeonatosRouteImport } from './routes/campeonatos'
 import { Route as LabirintoRouteImport } from './routes/labirinto'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PaisRouteImport } from './routes/pais'
@@ -21,6 +22,11 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampeonatosRoute = CampeonatosRouteImport.update({
+  id: '/campeonatos',
+  path: '/campeonatos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LabirintoRoute = LabirintoRouteImport.update({
@@ -61,6 +67,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/campeonatos': typeof CampeonatosRoute
   '/labirinto': typeof LabirintoRoute
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/campeonatos': typeof CampeonatosRoute
   '/labirinto': typeof LabirintoRoute
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
@@ -82,6 +90,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/campeonatos': typeof CampeonatosRoute
   '/labirinto': typeof LabirintoRoute
   '/login': typeof LoginRoute
   '/pais': typeof PaisRoute
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/campeonatos'
     | '/labirinto'
     | '/login'
     | '/pais'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/campeonatos'
     | '/labirinto'
     | '/login'
     | '/pais'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/campeonatos'
     | '/labirinto'
     | '/login'
     | '/pais'
@@ -125,6 +137,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CampeonatosRoute: typeof CampeonatosRoute
   LabirintoRoute: typeof LabirintoRoute
   LoginRoute: typeof LoginRoute
   PaisRoute: typeof PaisRoute
@@ -141,6 +154,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campeonatos': {
+      id: '/campeonatos'
+      path: '/campeonatos'
+      fullPath: '/campeonatos'
+      preLoaderRoute: typeof CampeonatosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/labirinto': {
@@ -197,6 +217,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CampeonatosRoute: CampeonatosRoute,
   LabirintoRoute: LabirintoRoute,
   LoginRoute: LoginRoute,
   PaisRoute: PaisRoute,

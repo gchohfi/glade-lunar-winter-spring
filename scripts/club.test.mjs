@@ -31,6 +31,7 @@ function modules(storage) {
 const load = modules();
 const { emptyState, todayKey } = load("types");
 const { migrateState } = load("progress");
+const { normalizeCourse } = load("course");
 const {
   COSMETICS,
   cosmeticItem,
@@ -123,7 +124,9 @@ test("club migration rejects malformed balances, IDs, goals and dates without re
   delete old.club;
   const migrated = migrateState(old);
   assert.deepEqual(migrated.club, base);
+  assert.deepEqual(migrated.course, normalizeCourse(old));
   delete migrated.club;
+  delete migrated.course;
   assert.deepEqual(migrated, old);
 });
 

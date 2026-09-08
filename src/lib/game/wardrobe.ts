@@ -90,7 +90,7 @@ export const DEFAULT_COSMETICS: CosmeticSelection = {
   ballId: "ball-classic",
   fieldId: "field-club",
 };
-type Career = Pick<PlayerState, "planetStars" | "club">;
+type Career = Pick<PlayerState, "planetStars" | "club" | "course">;
 
 export function cosmeticItem(id: string): CosmeticItem | undefined {
   return COSMETICS.find((item) => item.id === id);
@@ -107,6 +107,14 @@ export function cosmeticUnlocked(item: CosmeticItem, career: Career): boolean {
     );
   }
   if (item.stageIndex === null) return true;
+  const courseMatchId =
+    item.id === "ball-training" ? "bairro-1" : item.id === "field-sunset" ? "cidade-5" : null;
+  if (
+    courseMatchId &&
+    Array.isArray(career.course?.completedMatches) &&
+    career.course.completedMatches.includes(courseMatchId)
+  )
+    return true;
   const stars = career.planetStars?.[item.stageIndex];
   return Number.isInteger(stars) && stars >= 1 && stars <= 3;
 }
@@ -116,7 +124,13 @@ export function cosmeticRequirement(item: CosmeticItem, completed = false): stri
     return completed ? "Conquistado com moedas do clube" : `${item.cost} moedas do clube`;
   return item.stageIndex === null
     ? "Disponível desde o início"
-    : `${completed ? "Conquistado em" : "Conclua"} ${PLANETS[item.stageIndex].name}`;
+    : `${completed ? "Conquistado em" : "Conclua"} ${
+        item.id === "ball-training"
+          ? "Abertura da Copa do Bairro"
+          : item.id === "field-sunset"
+            ? "Final da Copa da Cidade"
+            : PLANETS[item.stageIndex].name
+      }`;
 }
 
 /** Allowlisted, additive migration. Unknown, mismatched or locked items fall back. */
@@ -131,7 +145,7 @@ export function normalizeCosmetics(raw: unknown, career: Career): CosmeticSelect
 
 export function cosmeticStatus(
   item: CosmeticItem,
-  state: Pick<PlayerState, "cosmetics" | "planetStars" | "club">,
+  state: Pick<PlayerState, "cosmetics" | "planetStars" | "club" | "course">,
 ) {
   if (!cosmeticUnlocked(item, state)) return "locked" as const;
   const selection = normalizeCosmetics(state.cosmetics, state);
