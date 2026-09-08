@@ -13,6 +13,10 @@
   --color-ok: #2f7d4a;
   --color-bad: #c4473a;
   --color-wash: #eaf0e9;
+  --color-club-dark: #17382d;
+  --color-club-soft: #d8e7db;
+  --color-club-paper: #f7f8f3;
+  --color-club-muted: #c0d3c8;
 
   --font-sans: "Lexend", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Bricolage Grotesque", ui-rounded, system-ui, sans-serif;
@@ -42,6 +46,995 @@
   --motion-quick: 150ms;
   --motion-fast: 250ms;
   --motion-slow: 400ms;
+}
+
+/* Club surfaces: scoped to the Home and Vestiario, never the question layout. */
+img[data-cosmetic-id="ball-gold"],
+img[data-cosmetic-id="ball-ice"] {
+  clip-path: circle(44.5% at 50% 50%);
+}
+.club-shell {
+  max-width: 1220px;
+}
+.club-app-header {
+  min-height: 4.5rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.club-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  line-height: 1.04;
+}
+.club-brand-break {
+  display: none;
+}
+.club-brand-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--color-accent);
+}
+.club-brand-mark > svg {
+  width: 100%;
+  height: 100%;
+  stroke-width: 1.5;
+}
+.club-brand-mark > span {
+  position: absolute;
+  top: 0.45rem;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+}
+.club-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.club-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--color-muted);
+  border-radius: var(--radius-sm);
+}
+.club-nav a:hover {
+  color: var(--color-accent);
+  background: var(--color-wash);
+}
+.club-unread {
+  margin-left: var(--space-1);
+  min-width: 1.25rem;
+  padding-inline: var(--space-1);
+  text-align: center;
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+}
+.club-home {
+  display: grid;
+  gap: var(--space-5);
+}
+.club-welcome,
+.club-shop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.club-greeting {
+  margin-top: var(--space-1);
+  font-size: 1.0625rem;
+  font-weight: 500;
+}
+.club-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.club-wallet > svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--color-accent);
+}
+.club-wallet strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.club-wallet small {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-muted);
+  font-size: 0.625rem;
+}
+.club-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  background: var(--color-club-dark);
+  color: var(--color-accent-fg);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.club-hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: var(--space-6);
+}
+.club-overline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-club-soft);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.club-live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-club-soft);
+}
+.club-hero h1 {
+  margin-top: var(--space-5);
+  font-size: clamp(2.25rem, 1.25rem + 3vw, 3.6rem);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  font-weight: 600;
+}
+.club-hero-description {
+  max-width: 28rem;
+  margin-top: var(--space-4);
+  color: var(--color-club-muted);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.club-hero-mission {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  margin-top: var(--space-4);
+  border-top: 1px solid color-mix(in srgb, var(--color-club-muted) 24%, transparent);
+}
+.club-hero-mission > div > span {
+  display: block;
+  color: var(--color-club-muted);
+  font-size: 0.6875rem;
+}
+.club-hero-mission strong {
+  display: block;
+  margin-top: var(--space-1);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+.club-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.club-reward > svg {
+  width: 1rem;
+  height: 1rem;
+}
+.club-hero-mission .club-reward {
+  background: color-mix(in srgb, var(--color-club-soft) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-club-soft) 24%, transparent);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-club-soft);
+}
+.club-primary {
+  width: 100%;
+  justify-content: space-between;
+  padding-inline: var(--space-5);
+  color: var(--color-club-dark);
+  background: var(--color-club-soft);
+  box-shadow: none;
+  font-size: 1.0625rem;
+}
+.club-primary:hover {
+  background: var(--color-accent-fg);
+}
+.club-hero :focus-visible {
+  outline-color: var(--color-accent-fg);
+}
+.club-hero-footnote {
+  margin-top: var(--space-3);
+  color: var(--color-club-muted);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+}
+.club-hero-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--color-club-paper);
+}
+.club-hero-scene.nico-scene {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 25rem;
+  flex: 1;
+  border-radius: 0;
+}
+.club-hero-scene .nico-scene-lion {
+  width: 76%;
+  height: 90%;
+  left: 8%;
+  bottom: 4%;
+}
+.club-hero-scene .nico-scene-ball {
+  right: 16%;
+  bottom: 9%;
+  width: 3.25rem;
+}
+.club-field-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 3.5rem;
+  padding: var(--space-3) var(--space-5);
+  color: var(--color-ink);
+}
+.club-field-caption > span:first-child {
+  font-size: 0.5625rem;
+  letter-spacing: 0.12em;
+  color: var(--color-muted);
+}
+.club-field-caption strong {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+.club-field-caption > span:last-child {
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+.club-day-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-1) var(--space-2);
+}
+.club-day-icon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  background: var(--color-wash);
+  color: var(--color-accent);
+  border-radius: var(--radius-md);
+}
+.club-day-icon > svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.club-day-progress {
+  flex: 1;
+  min-width: 0;
+}
+.club-day-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: 0.75rem;
+}
+.club-day-progress strong {
+  font-weight: 500;
+}
+.club-day-progress span {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.club-day-strip > p {
+  max-width: 12rem;
+  font-size: 0.6875rem;
+  color: var(--color-muted);
+}
+.club-next-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+.club-coach,
+.club-goal {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-5);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+}
+.club-section-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-accent);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.club-coach h2,
+.club-goal h2 {
+  margin-top: var(--space-3);
+  font-size: 1.65rem;
+  font-weight: 500;
+}
+.club-coach > p:not(.club-small-note),
+.club-goal-showcase p {
+  margin-top: var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+.club-coach-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  color: var(--color-accent);
+  font-size: 0.75rem;
+}
+.club-coach-detail > span:first-child {
+  font-weight: 500;
+}
+.club-coach .club-focus-rule {
+  font-size: 0.75rem;
+  margin-bottom: var(--space-5);
+}
+.club-coach > a,
+.club-goal > a {
+  margin-top: auto;
+  min-height: 3rem;
+  font-size: 0.875rem;
+}
+.club-small-note {
+  margin-top: var(--space-3);
+  font-size: 0.625rem;
+  line-height: 1.6;
+  color: var(--color-muted);
+  text-align: center;
+}
+.club-goal {
+  background: var(--color-club-paper);
+}
+.club-goal-showcase {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  margin: var(--space-4) 0;
+}
+.club-goal-showcase > div:last-child {
+  min-width: 0;
+  flex: 1;
+}
+.club-goal-showcase h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.club-goal-art {
+  display: grid;
+  place-items: center;
+  width: 8rem;
+  height: 8rem;
+  flex-shrink: 0;
+}
+.club-goal-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.club-goal-art[data-kind="field"] {
+  width: 9rem;
+  height: 6rem;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.club-goal-art[data-kind="field"] img {
+  object-fit: cover;
+}
+.club-goal-art > svg {
+  width: 4rem;
+  height: 4rem;
+  color: var(--color-accent);
+}
+.club-goal-progress {
+  margin: var(--space-3) 0 var(--space-5);
+}
+.club-goal-progress > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  font-size: 0.6875rem;
+}
+.club-goal-progress span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-muted);
+}
+.club-goal-progress strong {
+  font-weight: 500;
+  color: var(--color-accent);
+}
+.club-week {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.7fr);
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--color-line);
+  border-bottom: 1px solid var(--color-line);
+}
+.club-week h2 {
+  margin-top: var(--space-2);
+  font-size: 1.375rem;
+  font-weight: 500;
+}
+.club-week > div > p:last-child {
+  margin-top: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.club-career {
+  padding: var(--space-3) 0;
+}
+.club-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.club-section-heading h2 {
+  margin-top: var(--space-2);
+  font-size: 1.75rem;
+  font-weight: 500;
+}
+.club-section-heading > div > p:last-child {
+  margin-top: var(--space-2);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+.club-stage-count {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}
+.club-stage-count small {
+  font-size: 1rem;
+  color: var(--color-muted);
+}
+.club-honors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.club-honors > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-muted);
+}
+.club-honors > div[data-owned="true"] {
+  color: var(--color-accent);
+}
+.club-honors strong,
+.club-honors span {
+  display: block;
+}
+.club-honors strong {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.club-honors span {
+  margin-top: var(--space-1);
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+.club-family-prize {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--color-line);
+}
+.club-family-prize > svg {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+.club-family-prize > div {
+  flex: 1;
+}
+.club-family-prize h2 {
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+.club-family-prize p {
+  margin-top: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.club-family-prize > a {
+  font-size: 0.75rem;
+}
+
+.club-shop-header {
+  margin: var(--space-4) 0 var(--space-6);
+}
+.club-shop-header .wardrobe-heading {
+  margin: 0;
+}
+.club-shop-header h1 {
+  font-size: clamp(2.5rem, 1.5rem + 3vw, 4rem);
+  font-weight: 600;
+  margin-top: var(--space-3);
+}
+.club-shop-header .wardrobe-heading > p:last-child {
+  max-width: 34rem;
+}
+.club-shop-preview-column {
+  min-width: 0;
+}
+.club-shop-workspace .wardrobe-preview {
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: none;
+}
+.club-shop-workspace .wardrobe-preview-heading {
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+.club-shop-workspace .wardrobe-preview-heading h2 {
+  margin-top: var(--space-2);
+  font-size: 1.5rem;
+}
+.club-shop-workspace .wardrobe-preview-heading > span {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.club-shop-workspace .wardrobe-preview .football-pitch {
+  aspect-ratio: 2 / 1;
+}
+.club-shop-workspace .wardrobe-preview .pitch-environment {
+  object-fit: cover;
+  object-position: 66% center;
+}
+.club-shop-workspace .wardrobe-preview .pitch-nico {
+  width: 32%;
+  height: 85%;
+  left: 0;
+}
+.club-shop-workspace .wardrobe-preview .pitch-nico-shadow {
+  left: 9%;
+  width: 16%;
+}
+.club-shop-goal {
+  padding: var(--space-5);
+  margin-top: var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--color-club-dark);
+  color: var(--color-accent-fg);
+}
+.club-shop-goal .club-section-kicker {
+  color: var(--color-club-soft);
+}
+.club-shop-goal h2 {
+  margin-top: var(--space-3);
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+.club-shop-goal p:not(.club-section-kicker) {
+  margin-top: var(--space-3);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-club-muted);
+}
+.club-shop-goal [role="progressbar"] > div {
+  background: var(--color-club-soft);
+}
+.club-shop-promise {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-2);
+}
+.club-shop-promise > svg {
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+.club-shop-promise p {
+  font-size: 0.6875rem;
+  line-height: 1.65;
+  color: var(--color-muted);
+}
+.club-shop-workspace .wardrobe-tabs {
+  display: flex;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  padding: 0 0 var(--space-3);
+  gap: var(--space-2);
+}
+.club-shop-workspace .wardrobe-tabs button {
+  flex: 1;
+  min-height: 3rem;
+  font-size: 0.8125rem;
+}
+.club-shop-workspace .wardrobe-tabs [data-state="active"] {
+  background: var(--color-club-dark);
+  color: var(--color-accent-fg);
+  box-shadow: none;
+}
+.club-shop-workspace .wardrobe-group > h2 {
+  font-size: 1.375rem;
+  margin-bottom: var(--space-1);
+}
+.club-collection-note {
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  margin-bottom: var(--space-4);
+}
+.club-shop-item {
+  box-shadow: none;
+  border-radius: var(--radius-lg);
+  transition:
+    border-color var(--motion-quick) var(--ease-out),
+    box-shadow var(--motion-quick) var(--ease-out);
+}
+.club-shop-item:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-soft);
+}
+.club-shop-item .wardrobe-item-art {
+  position: relative;
+  height: 10rem;
+  background: var(--color-club-paper);
+}
+.club-shop-item .wardrobe-item-art img {
+  width: 8rem;
+  height: 8rem;
+}
+.club-shop-item .wardrobe-item-art[data-kind="field"] img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 65% center;
+}
+.club-item-goal {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-club-dark);
+  color: var(--color-accent-fg);
+  border-radius: var(--radius-xs);
+  font-size: 0.625rem;
+}
+.club-shop-item .wardrobe-item-info h3 {
+  font-size: 1.125rem;
+}
+.club-shop-item .wardrobe-item-info > p {
+  min-height: 2.5rem;
+  font-size: 0.6875rem;
+}
+.club-shop-item .wardrobe-item-info button {
+  font-size: 0.8125rem;
+  padding-inline: var(--space-3);
+}
+.club-shop-dialog .wardrobe-save-status {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.club-purchase-confirm {
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-accent);
+  background: var(--color-wash);
+  border-radius: var(--radius-md);
+}
+.club-purchase-confirm h3 {
+  font-size: 1.125rem;
+}
+.club-purchase-confirm p {
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.club-purchase-confirm strong {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+.club-shop-footer {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-line);
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  line-height: 1.65;
+}
+@media (min-width: 960px) {
+  .club-shop-workspace {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    gap: var(--space-6);
+  }
+  .club-shop-workspace .wardrobe-preview {
+    position: static;
+  }
+  .club-shop-preview-column {
+    position: sticky;
+    top: var(--space-5);
+  }
+}
+@media (min-width: 1100px) {
+  .club-hero-copy {
+    padding: 2.5rem;
+  }
+  .club-coach,
+  .club-goal {
+    padding: var(--space-6);
+  }
+}
+@media (max-width: 760px) {
+  .club-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .club-hero-copy {
+    padding: var(--space-5);
+  }
+  .club-hero h1 {
+    margin-top: var(--space-4);
+    font-size: 2.5rem;
+  }
+  .club-hero-description {
+    margin-top: var(--space-3);
+    max-width: none;
+  }
+  .club-hero-scene.nico-scene {
+    height: 19rem;
+    min-height: 19rem;
+    flex: none;
+  }
+  .club-hero-scene .nico-stadium {
+    object-position: center 62%;
+  }
+  .club-hero-scene .nico-scene-lion {
+    left: 10%;
+    width: 70%;
+    height: 94%;
+    bottom: 2%;
+  }
+  .club-hero-scene .nico-scene-ball {
+    right: 22%;
+    width: 2.75rem;
+  }
+  .club-field-caption {
+    min-height: 3rem;
+    padding: var(--space-2) var(--space-5);
+  }
+  .club-next-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+  .club-week {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .club-week > .grid {
+    max-width: 28rem;
+  }
+  .club-day-strip > p {
+    display: none;
+  }
+  .club-section-heading h2 {
+    font-size: 1.5rem;
+  }
+  .club-honors {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .club-family-prize {
+    flex-wrap: wrap;
+  }
+  .club-family-prize > div {
+    min-width: 70%;
+  }
+  .club-family-prize > a {
+    margin-left: 2.5rem;
+  }
+  .club-shop-header {
+    align-items: flex-start;
+  }
+  .club-shop-header .wardrobe-heading > p:first-child {
+    max-width: 14rem;
+  }
+  .club-shop-header h1 {
+    font-size: 2.5rem;
+  }
+  .club-shop-workspace .wardrobe-preview-heading h2 {
+    font-size: 1.25rem;
+  }
+}
+@media (max-width: 420px) {
+  .club-app-header {
+    min-height: 4rem;
+    margin-bottom: var(--space-4);
+  }
+  .club-brand {
+    font-size: 1rem;
+    gap: var(--space-1);
+  }
+  .club-brand-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .club-brand-mark > span {
+    font-size: 1.125rem;
+    top: 0.4rem;
+  }
+  .club-brand-break {
+    display: block;
+  }
+  .club-nav {
+    gap: 0;
+  }
+  .club-nav a {
+    padding-inline: var(--space-2);
+    font-size: 0.75rem;
+  }
+  .club-welcome {
+    gap: var(--space-2);
+  }
+  .club-welcome .match-eyebrow {
+    font-size: 0.5625rem;
+    letter-spacing: 0.08em;
+  }
+  .club-greeting {
+    font-size: 0.9375rem;
+  }
+  .club-wallet {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+  .club-wallet > svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .club-wallet strong {
+    font-size: 1.25rem;
+  }
+  .club-wallet small {
+    font-size: 0.5625rem;
+  }
+  .club-hero h1 {
+    font-size: 2.25rem;
+  }
+  .club-hero-mission strong {
+    font-size: 1.125rem;
+  }
+  .club-hero-mission .club-reward {
+    padding-inline: var(--space-2);
+    font-size: 0.625rem;
+  }
+  .club-primary {
+    font-size: 1rem;
+  }
+  .club-goal-art {
+    width: 6rem;
+    height: 6rem;
+  }
+  .club-goal-art[data-kind="field"] {
+    width: 7rem;
+    height: 5rem;
+  }
+  .club-goal-showcase {
+    gap: var(--space-3);
+  }
+  .club-goal-showcase h2 {
+    font-size: 1.375rem;
+  }
+  .club-coach-detail {
+    flex-wrap: wrap;
+  }
+  .club-day-progress > div:first-child {
+    font-size: 0.625rem;
+  }
+  .club-shop-header {
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+  .club-shop-header .wardrobe-heading {
+    flex-basis: 100%;
+  }
+  .club-shop-header .wardrobe-heading > p:first-child {
+    max-width: none;
+  }
+  .club-shop-header .club-wallet {
+    width: 100%;
+  }
+  .club-shop-header .club-wallet > span {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .club-shop-workspace .wardrobe-preview {
+    padding: var(--space-4);
+  }
+  .club-shop-workspace .wardrobe-grid {
+    gap: var(--space-3);
+  }
+  .club-shop-item .wardrobe-item-art {
+    height: 8rem;
+  }
+  .club-shop-item .wardrobe-item-art img {
+    width: 6.5rem;
+    height: 6.5rem;
+  }
+  .club-shop-item .wardrobe-item-info h3 {
+    font-size: 1rem;
+  }
+  .club-shop-item .wardrobe-item-info button {
+    font-size: 0.6875rem;
+    padding-inline: var(--space-2);
+    gap: var(--space-1);
+  }
+  .club-shop-item .wardrobe-item-info button > svg {
+    width: 0.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .club-shop-item {
+    transition: none;
+  }
 }
 
 @layer base {

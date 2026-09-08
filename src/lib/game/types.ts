@@ -17,6 +17,7 @@ export type FactStat = {
   wrong: number;
   totalMs: number;
   lastSeen: number;
+  independentDays?: string[];
 };
 
 export type DayStat = {
@@ -51,6 +52,13 @@ export type ParentAlert = {
 
 export type CosmeticSelection = { ballId: string; fieldId: string };
 
+export type ClubState = {
+  balance: number;
+  ownedItemIds: string[];
+  goalItemId: string | null;
+  rewardDays: Record<string, { mission: boolean; focus: boolean }>;
+};
+
 export type PlayerState = {
   version: 2;
   childName: string;
@@ -78,6 +86,7 @@ export type PlayerState = {
   notifyParents: boolean;
   prizeName: string;
   cosmetics?: CosmeticSelection;
+  club?: ClubState;
 };
 
 export type RankDef = {
@@ -166,6 +175,7 @@ export function emptyState(): PlayerState {
     notifyParents: false,
     prizeName: "",
     cosmetics: { ballId: "ball-classic", fieldId: "field-club" },
+    club: { balance: 0, ownedItemIds: [], goalItemId: null, rewardDays: {} },
   };
 }
 

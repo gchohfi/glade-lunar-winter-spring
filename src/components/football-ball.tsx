@@ -12,6 +12,7 @@ export function FootballBall({ className, itemId }: { className?: string; itemId
       <img
         src={ball.art}
         data-ball-id={ball.id}
+        data-cosmetic-id={ball.id}
         alt=""
         width={384}
         height={384}

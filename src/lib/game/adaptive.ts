@@ -1,6 +1,8 @@
 import { rankById, RANK_MIX } from "./ranks";
 import { applyRunProgress, type ProgressDelta } from "./progress";
 import { collectParentAlerts } from "./alerts";
+import { applyClubRewards, validClubDay } from "./club";
+import { evaluateFocus, getDailyCoach, independentDays } from "./coaching";
 import {
   factKey,
   factOp,
@@ -66,7 +68,11 @@ export function factBand(fact: Fact): FactBand {
     return "medium";
   }
   if (fact.a === 5 || fact.b === 5 || fact.a === 10 || fact.b === 10) return "easy";
-  if ((fact.a === 3 || fact.b === 3 || fact.a === 4 || fact.b === 4) && fact.a <= 10 && fact.b <= 10) {
+  if (
+    (fact.a === 3 || fact.b === 3 || fact.a === 4 || fact.b === 4) &&
+    fact.a <= 10 &&
+    fact.b <= 10
+  ) {
     return "easy";
   }
   if ([6, 7, 8, 9, 12, 13].includes(fact.a) && [6, 7, 8, 9, 12, 13].includes(fact.b)) {
@@ -167,9 +173,7 @@ function arrangeVariety(facts: Fact[]): Fact[] {
       const last = ordered[ordered.length - 1];
       const lastTable = last ? (factOp(last) === "div" ? last.b : last.a) : null;
       if (lastTable === table) {
-        const other = tables.some(
-          (alt) => alt !== table && (grouped.get(alt)?.length ?? 0) > 0,
-        );
+        const other = tables.some((alt) => alt !== table && (grouped.get(alt)?.length ?? 0) > 0);
         if (other) continue;
       }
       ordered.push(list.shift()!);
@@ -191,8 +195,7 @@ export function pickMissionFacts(state: PlayerState, count = TARGET_CORRECT + 4)
   for (const band of Object.keys(buckets) as FactBand[]) {
     buckets[band] = shuffle(buckets[band]).sort(
       (a, b) =>
-        freshnessScore(state.facts[factKey(b)], now) -
-        freshnessScore(state.facts[factKey(a)], now),
+        freshnessScore(state.facts[factKey(b)], now) - freshnessScore(state.facts[factKey(a)], now),
     );
   }
 
@@ -258,6 +261,8 @@ function bumpFact(
   fact: Fact,
   ok: boolean,
   ms: number,
+  at: number,
+  independent: boolean,
 ): Record<string, FactStat> {
   const key = factKey(fact);
   const prev = facts[key] ?? {
@@ -267,6 +272,10 @@ function bumpFact(
     totalMs: 0,
     lastSeen: 0,
   };
+  const finishedDay = todayKey(new Date(at));
+  const previousDays = Array.isArray(prev.independentDays)
+    ? prev.independentDays.filter((day) => validClubDay(day) && day <= finishedDay)
+    : [];
   return {
     ...facts,
     [key]: {
@@ -274,7 +283,13 @@ function bumpFact(
       correct: prev.correct + (ok ? 1 : 0),
       wrong: prev.wrong + (ok ? 0 : 1),
       totalMs: prev.totalMs + Math.max(0, Math.round(ms)),
-      lastSeen: Date.now(),
+      lastSeen: at,
+      independentDays:
+        independent && ok
+          ? Array.from(new Set([...previousDays, finishedDay]))
+              .sort()
+              .slice(-7)
+          : previousDays,
     },
   };
 }
@@ -287,6 +302,9 @@ export type MissionOutcome = {
   progress: ProgressDelta;
   newAlerts: ReturnType<typeof collectParentAlerts>;
   dailyJustDone: boolean;
+  clubReward: { coinsGained: number; missionRewarded: boolean; focusRewarded: boolean };
+  focus: { correct: number; target: number; completed: boolean; label: string };
+  retainedFacts: number;
 };
 
 export function applyMissionResult(
@@ -297,12 +315,51 @@ export function applyMissionResult(
     planetIndex?: number;
   },
 ): MissionOutcome {
-  const day = todayKey();
+  const day = todayKey(new Date(record.finishedAt));
+  const plan = getDailyCoach(state, record.rankId, new Date(record.startedAt));
+  const focus = evaluateFocus(plan, record.factsTried);
+  const duplicate = state.missions.some(
+    (mission) => mission.mode === record.mode && mission.startedAt === record.startedAt,
+  );
+  if (duplicate) {
+    return {
+      state,
+      promotedTo: null,
+      demotedTo: null,
+      prizeReady: state.prizeCycle >= PRIZE_EVERY,
+      progress: {
+        xpGained: 0,
+        starsEarned: 0,
+        levelsGained: 0,
+        unlockedPlanet: null,
+        newShipName: null,
+        leveledTo: null,
+        isRecord: false,
+        xpScaled: false,
+      },
+      newAlerts: [],
+      dailyJustDone: false,
+      clubReward: { coinsGained: 0, missionRewarded: false, focusRewarded: false },
+      focus: { ...focus, label: plan.focusLabel },
+      retainedFacts: 0,
+    };
+  }
   const dayPrev = state.days[day] ?? { answered: 0, correct: 0, missions: 0 };
 
   let facts = state.facts;
+  const seen = new Set<string>();
+  let retainedFacts = 0;
   for (const tried of record.factsTried) {
-    facts = bumpFact(facts, tried.fact, tried.ok, tried.ms);
+    const key = factKey(tried.fact);
+    const independent = record.mode === "multiplication" && !seen.has(key);
+    if (
+      independent &&
+      tried.ok &&
+      independentDays(state, tried.fact, day).some((previous) => previous < day)
+    )
+      retainedFacts += 1;
+    facts = bumpFact(facts, tried.fact, tried.ok, tried.ms, record.finishedAt, independent);
+    seen.add(key);
   }
 
   const passed = record.passed;
@@ -319,9 +376,7 @@ export function applyMissionResult(
     return state.prizeCycle + 1;
   })();
   const prizesEarned =
-    passed && state.prizeCycle === PRIZE_EVERY - 1
-      ? state.prizesEarned + 1
-      : state.prizesEarned;
+    passed && state.prizeCycle === PRIZE_EVERY - 1 ? state.prizesEarned + 1 : state.prizesEarned;
   const prizeReady = prizeCycle >= PRIZE_EVERY;
 
   const mission: MissionRecord = {
@@ -378,15 +433,36 @@ export function applyMissionResult(
   const prevCorrect = state.days[day]?.correct ?? 0;
   const nextCorrect = progressed.state.days[day]?.correct ?? 0;
   const dailyJustDone = prevCorrect < DAILY_GOAL && nextCorrect >= DAILY_GOAL;
+  // Focus is part of the real match, not an additional grindable practice loop.
+  const qualifying =
+    record.mode === "multiplication" &&
+    passed &&
+    record.correct >= TARGET_CORRECT &&
+    record.factsTried.filter((attempt) => attempt.ok).length >= TARGET_CORRECT;
+  const club = applyClubRewards(
+    { ...progressed.state, parentAlerts },
+    {
+      day,
+      missionCompleted: qualifying,
+      focusCompleted: qualifying && focus.completed,
+    },
+  );
 
   return {
-    state: { ...progressed.state, parentAlerts },
+    state: club.state,
     promotedTo,
     demotedTo,
     prizeReady,
     progress: progressed.delta,
     newAlerts,
     dailyJustDone,
+    clubReward: {
+      coinsGained: club.coinsGained,
+      missionRewarded: club.missionRewarded,
+      focusRewarded: club.focusRewarded,
+    },
+    focus: { ...focus, label: plan.focusLabel },
+    retainedFacts,
   };
 }
 
@@ -414,7 +490,9 @@ export function weakestFacts(
         avgMs: stat.attempts ? stat.totalMs / stat.attempts : 0,
       };
     })
-    .filter((row) => row.stat.attempts >= 2 && Number.isFinite(row.fact.a) && Number.isFinite(row.fact.b))
+    .filter(
+      (row) => row.stat.attempts >= 2 && Number.isFinite(row.fact.a) && Number.isFinite(row.fact.b),
+    )
     .sort((a, b) => a.accuracy - b.accuracy || b.avgMs - a.avgMs);
   return rows.slice(0, limit);
 }

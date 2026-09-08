@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { Shield } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -16,15 +17,22 @@ export function AppShell({
       <div
         className={cn(
           "mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-10 safe-top sm:px-6",
-          compact && "max-w-5xl",
+          compact && "club-shell",
         )}
       >
-        <header className="mb-6 flex items-center justify-between gap-3">
+        <header className="club-app-header mb-6 flex items-center justify-between gap-3">
           <Link
             to="/"
-            className="font-display text-lg tracking-tight text-ink no-underline"
+            className="club-brand font-display text-lg tracking-tight text-ink no-underline"
           >
-            Missão Tabuada
+            <span className="club-brand-mark">
+              <Shield aria-hidden="true" />
+              <span>×</span>
+            </span>
+            <span>
+              Missão
+              <br className="club-brand-break" /> Tabuada
+            </span>
           </Link>
           {right}
         </header>
