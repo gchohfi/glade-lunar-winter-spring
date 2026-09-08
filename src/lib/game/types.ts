@@ -1,3 +1,5 @@
+import type { CourseState } from "./course-types";
+
 export type ModeId = "multiplication" | "vocabulary" | "definitions";
 
 export type RankId =
@@ -18,6 +20,7 @@ export type FactStat = {
   totalMs: number;
   lastSeen: number;
   independentDays?: string[];
+  helpRequests?: number;
 };
 
 export type DayStat = {
@@ -87,6 +90,7 @@ export type PlayerState = {
   prizeName: string;
   cosmetics?: CosmeticSelection;
   club?: ClubState;
+  course?: CourseState;
 };
 
 export type RankDef = {

@@ -19,6 +19,8 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { FieldScene } from "@/components/field-scene";
 import { usePlayer } from "@/lib/game/store";
+import { useCourseSync } from "@/lib/game/connected-store";
+import { CourseConnectionGate } from "./course-connection-gate";
 import { useCosmetics } from "@/components/use-cosmetics";
 import { clubSummary } from "@/lib/game/club";
 import {
@@ -32,11 +34,10 @@ import {
 import { cn } from "@/lib/utils";
 
 const STATUS = { equipped: "No meu jogo", unlocked: "Meu item", locked: "A conquistar" } as const;
-const STORAGE_ERROR =
-  "Não foi possível salvar neste aparelho. Nada foi alterado. Libere espaço e tente de novo.";
 
 function WardrobeItem({ item }: { item: CosmeticItem }) {
   const state = usePlayer();
+  const sync = useCourseSync();
   const equipped = useCosmetics();
   const club = clubSummary(state);
   const [message, setMessage] = useState("");
@@ -49,16 +50,14 @@ function WardrobeItem({ item }: { item: CosmeticItem }) {
   const isGoal = club.goalItem?.id === item.id;
   const preview = { ...equipped, [item.kind === "ball" ? "ballId" : "fieldId"]: item.id };
 
-  const equipOrBuy = () => {
+  const equipOrBuy = async () => {
     setMessage("");
     if (!locked) {
-      const result = state.equipCosmetic(item.id);
+      const result = await sync.send({ type: "equip", itemId: item.id });
       setMessage(
-        result === "equipped"
-          ? `${item.name} no seu jogo. Escolha salva neste aparelho.`
-          : result === "storage-error"
-            ? STORAGE_ERROR
-            : "Esse item ainda não está disponível para equipar.",
+        result?.status === "applied" || result?.status === "duplicate"
+          ? `${item.name} no seu jogo. Escolha confirmada na sua conta.`
+          : (result?.message ?? "Não conseguimos confirmar a escolha. Reconecte para conferir."),
       );
       return;
     }
@@ -66,30 +65,23 @@ function WardrobeItem({ item }: { item: CosmeticItem }) {
       setConfirming(true);
       return;
     }
-    const result = state.buyCosmetic(item.id);
+    const result = await sync.send({ type: "buy", itemId: item.id });
     setConfirming(false);
     setMessage(
-      result === "purchased"
+      result?.status === "applied" || result?.status === "duplicate"
         ? `${item.name} já faz parte da sua coleção. Compra salva. Agora você pode equipar no seu jogo.`
-        : result === "storage-error"
-          ? STORAGE_ERROR
-          : result === "insufficient-coins"
-            ? "O saldo mudou e ainda não cobre esse item. Suas moedas não foram gastas."
-            : result === "owned"
-              ? "Esse item já é seu. Você pode equipá-lo."
-              : "Não foi possível comprar esse item. Suas moedas não foram gastas.",
+        : (result?.message ??
+            "Compra ainda não confirmada. Reconecte para conferir o saldo antes de tentar novamente."),
     );
   };
-  const chooseGoal = () => {
-    const result = state.setCosmeticGoal(isGoal ? null : item.id);
+  const chooseGoal = async () => {
+    const result = await sync.send({ type: "goal", itemId: isGoal ? null : item.id });
     setMessage(
-      result === "selected"
-        ? `${item.name} é sua próxima conquista. Acompanhe na página do clube.`
-        : result === "cleared"
+      result?.status === "applied" || result?.status === "duplicate"
+        ? isGoal
           ? "Meta removida. Você pode escolher outra quando quiser."
-          : result === "storage-error"
-            ? STORAGE_ERROR
-            : "Não foi possível salvar sua escolha. Tente novamente.",
+          : `${item.name} é sua próxima conquista. Escolha confirmada na sua conta.`
+        : (result?.message ?? "Não foi possível confirmar sua escolha. Reconecte para conferir."),
     );
   };
 
@@ -208,7 +200,10 @@ function WardrobeItem({ item }: { item: CosmeticItem }) {
             className="w-full"
             onClick={equipOrBuy}
             disabled={
-              !state.hydrated || status === "equipped" || (locked && (!paid || missing > 0))
+              sync.status !== "ready" ||
+              sync.busy ||
+              status === "equipped" ||
+              (locked && (!paid || missing > 0))
             }
           >
             {status === "equipped"
@@ -234,7 +229,7 @@ function WardrobeItem({ item }: { item: CosmeticItem }) {
                 className="mt-2 w-full"
                 onClick={chooseGoal}
                 aria-pressed={isGoal}
-                disabled={!state.hydrated}
+                disabled={sync.status !== "ready" || sync.busy}
               >
                 <Flag className="size-4" aria-hidden="true" />
                 {isGoal ? "Remover como minha meta" : "Quero conquistar este"}
@@ -246,8 +241,8 @@ function WardrobeItem({ item }: { item: CosmeticItem }) {
           </p>
           {locked && paid && !confirming ? (
             <p className="club-small-note">
-              Uma partida completa rende 20 moedas. O foco da partida pode render mais 10. Cada
-              recompensa, uma vez por dia.
+              A primeira partida concluída do dia rende 30 moedas. Você pode jogar mais, sem moedas
+              extras e sem perder conquistas nos dias em que não jogar.
             </p>
           ) : null}
           <Dialog.Close asChild>
@@ -263,9 +258,16 @@ function WardrobeItem({ item }: { item: CosmeticItem }) {
 
 export function Wardrobe() {
   const state = usePlayer();
+  const sync = useCourseSync();
   const equipped = useCosmetics();
   const club = clubSummary(state);
   const owned = COSMETICS.filter((item) => cosmeticUnlocked(item, state));
+  if (sync.status !== "ready" || sync.legacyAvailable)
+    return (
+      <AppShell compact>
+        <CourseConnectionGate />
+      </AppShell>
+    );
   return (
     <AppShell
       compact
@@ -310,8 +312,8 @@ export function Wardrobe() {
             <p className="wardrobe-preview-label">
               {cosmeticItem(equipped.ballId)?.name} · {cosmeticItem(equipped.fieldId)?.name}
             </p>
-            <Link to="/play" className={cn(buttonVariants(), "mt-5 w-full no-underline")}>
-              Jogar com meu time
+            <Link to="/" className={cn(buttonVariants(), "mt-5 w-full no-underline")}>
+              Ver minha próxima partida
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </Card>
@@ -389,8 +391,8 @@ export function Wardrobe() {
         </Tabs.Root>
       </div>
       <p className="club-shop-footer">
-        Suas compras e escolhas ficam salvas neste aparelho. Você pode trocar os itens equipados
-        quando quiser. O Nico continua sendo o mesmo companheiro de time.
+        Suas compras e escolhas ficam guardadas na conta do responsável. Você pode trocar os itens
+        equipados quando quiser. O Nico continua sendo o mesmo companheiro de time.
       </p>
     </AppShell>
   );

@@ -1,418 +1,542 @@
-import { useEffect } from "react";
-import { Link } from "@tanstack/react-router";
-import { SignedIn, SignedOut, UserButton } from "@/lib/auth/gates";
-import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, LockKeyhole, ShieldCheck } from "lucide-react";
+import { signOut } from "@/lib/auth/client";
 import { AppShell } from "@/components/app-shell";
-import { persistCloud } from "@/components/cloud-sync";
-import { ParentAlerts } from "@/components/parent-alerts";
-import { LearningSummary } from "@/components/learning-summary";
-import { Badge } from "@/components/ui/badge";
+import { CourseConnectionGate } from "@/components/course-connection-gate";
+import { ParentLearningReport } from "@/components/parent-learning-report";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { currentStreak, weakestFacts } from "@/lib/game/adaptive";
-import { unreadAlerts } from "@/lib/game/alerts";
-import { missionsToPrize, prizeLabel } from "@/lib/game/motivate";
-import { fireParentNotify } from "@/lib/game/notify";
-import { RANKS, rankById, timeWithBoost } from "@/lib/game/ranks";
-import { loadProgress } from "@/lib/server/player";
-import { usePlayer } from "@/lib/game/store";
-import { PLANETS } from "@/lib/game/worlds";
+import { CHAMPIONSHIPS, COURSE_MATCHES, normalizeCourse } from "@/lib/game/course";
+import { useCourseSync } from "@/lib/game/connected-store";
+import { getParentAccess, setParentAccess } from "@/lib/game/parent-access";
+import type { ParentReport, ParentStatus } from "@/lib/game/parent-types";
+import type { PlayerState } from "@/lib/game/types";
 import {
-  DAILY_GOAL,
-  EXTRA_TIME_OPTIONS,
-  PRIZE_EVERY,
-  formatClock,
-  factOp,
-  factKey,
-  todayKey,
-  type RankId,
-} from "@/lib/game/types";
-import { cn } from "@/lib/utils";
+  closeParents,
+  loadParentReport,
+  parentStatus,
+  setParentPin,
+  unlockParents,
+} from "@/lib/server/parents";
 
-function lastDays(n: number): string[] {
-  const keys: string[] = [];
-  const start = new Date();
-  for (let i = n - 1; i >= 0; i -= 1) {
-    const d = new Date(start);
-    d.setDate(start.getDate() - i);
-    keys.push(todayKey(d));
-  }
-  return keys;
-}
+const errorText = (error: unknown) => {
+  if (error instanceof Error && /Unauthorized|401/.test(error.message))
+    return "Entre novamente na conta do responsável para continuar.";
+  if (
+    error instanceof Error &&
+    /^(O acesso|Abra os Pais|Entre novamente|Use um PIN|Digite os seis|O armazenamento)/.test(
+      error.message,
+    )
+  )
+    return error.message;
+  return "Não recebemos confirmação. Confira a conexão e tente novamente.";
+};
 
 export function ParentPanel() {
-  const player = usePlayer();
-  const { user } = useCurrentUserState();
-  const replaceState = usePlayer((s) => s.replaceState);
-  const snapshot = usePlayer((s) => s.snapshot);
-  const setChildName = usePlayer((s) => s.setChildName);
-  const setPrizeName = usePlayer((s) => s.setPrizeName);
-  const setRank = usePlayer((s) => s.setRank);
-  const setSound = usePlayer((s) => s.setSound);
-  const setExtraTime = usePlayer((s) => s.setExtraTime);
-  const claimPrize = usePlayer((s) => s.claimPrize);
-  const selectedRank = rankById(PLANETS[player.selectedPlanet]?.rankId ?? player.rankId);
-  const rank = selectedRank;
-  const clockMs = timeWithBoost(selectedRank, player.consecutiveFails, player.extraTimeSec * 1000);
-  const today = player.days[todayKey()] ?? { answered: 0, correct: 0, missions: 0 };
-  const weak = weakestFacts(player);
-  const streak = currentStreak(player);
-  const days = lastDays(14);
-  const prizeReady = player.prizeCycle >= PRIZE_EVERY;
-
-  const save = () => persistCloud();
-
+  const accountId = useCourseSync((state) => state.accountId);
+  return <ParentArea key={accountId ?? "signed-out"} />;
+}
+function ParentArea() {
+  const sync = useCourseSync();
+  const refresh = useCourseSync((state) => state.refresh);
+  const navigate = useNavigate();
+  const [status, setStatus] = useState<ParentStatus | null>(null);
+  const [report, setReport] = useState<ParentReport | null>(null);
+  const [expires, setExpires] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [reset, setReset] = useState(false);
+  const mounted = useRef(true);
+  const sequence = useRef(0);
   useEffect(() => {
-    if (!user) return;
-    const tick = () => {
-      void loadProgress()
-        .then((remote) => {
-          if (!remote) return;
-          const local = snapshot();
-          const remoteUnread = unreadAlerts(remote).length;
-          const localUnread = unreadAlerts(local).length;
-          const newer =
-            remote.totalMissionsPassed > local.totalMissionsPassed || remoteUnread > localUnread;
-          if (!newer) return;
-          replaceState(remote);
-          const fresh = unreadAlerts(remote)[0];
-          if (fresh && remote.notifyParents && remoteUnread > localUnread) {
-            fireParentNotify(fresh);
-          }
-        })
-        .catch(() => undefined);
+    mounted.current = true;
+    const requestCounter = sequence;
+    return () => {
+      mounted.current = false;
+      requestCounter.current++;
+      const access = getParentAccess();
+      setParentAccess(null);
+      if (access) void closeParents({ data: { grant: access.token } }).catch(() => undefined);
     };
-    const id = window.setInterval(tick, 15000);
-    return () => window.clearInterval(id);
-  }, [user, replaceState, snapshot]);
-
+  }, []);
+  useEffect(() => {
+    if (!sync.accountId) return;
+    let live = true;
+    void refresh()
+      .then(() => parentStatus())
+      .then((value) => {
+        if (live) setStatus(value);
+      })
+      .catch((error) => {
+        if (live) setMessage(errorText(error));
+      });
+    return () => {
+      live = false;
+    };
+  }, [sync.accountId, refresh]);
+  useEffect(() => {
+    if (!expires) return;
+    const timeout = window.setTimeout(
+      () => {
+        sequence.current++;
+        setParentAccess(null);
+        setReport(null);
+        setExpires(0);
+        setMessage("O acesso de dez minutos terminou. Digite seu PIN novamente.");
+      },
+      Math.max(0, expires - Date.now()),
+    );
+    return () => window.clearTimeout(timeout);
+  }, [expires]);
+  const refreshReport = async () => {
+    const request = ++sequence.current;
+    try {
+      const value = await loadParentReport();
+      if (mounted.current && request === sequence.current && getParentAccess()) setReport(value);
+    } catch (error) {
+      if (mounted.current && request === sequence.current) {
+        setReport(null);
+        setMessage(errorText(error));
+      }
+    }
+  };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy || !status) return;
+    const setting = !status.configured || reset;
+    if (setting && pin !== confirmation) {
+      setMessage("Os dois PINs precisam ser iguais.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const value = await (setting ? setParentPin : unlockParents)({ data: { pin } });
+      if (!mounted.current) {
+        if (value.grant) void closeParents({ data: { grant: value.grant } }).catch(() => undefined);
+        return;
+      }
+      setPin("");
+      setConfirmation("");
+      if (!value.ok || !value.grant || !value.expiresAt) {
+        setMessage(value.message ?? "Acesso não confirmado.");
+        setStatus({ ...status, lockedUntil: value.lockedUntil ?? 0 });
+        return;
+      }
+      setParentAccess({ token: value.grant, expiresAt: value.expiresAt });
+      setExpires(value.expiresAt);
+      setStatus({ ...status, configured: true, lockedUntil: 0 });
+      setReset(false);
+      await sync.refresh();
+      await refreshReport();
+    } catch (error) {
+      if (mounted.current) {
+        setMessage(errorText(error));
+        void parentStatus()
+          .then((value) => {
+            if (mounted.current) setStatus(value);
+          })
+          .catch(() => undefined);
+      }
+    } finally {
+      if (mounted.current) setBusy(false);
+    }
+  };
+  const leave = async (destination: "game" | "login") => {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const access = getParentAccess();
+      if (access) await closeParents({ data: { grant: access.token } });
+      sequence.current++;
+      setParentAccess(null);
+      setReport(null);
+      setExpires(0);
+      if (destination === "login") await signOut("/login?parents=true");
+      else await navigate({ to: "/" });
+    } catch (error) {
+      setMessage(errorText(error));
+    } finally {
+      if (mounted.current) setBusy(false);
+    }
+  };
+  const ready = !!sync.accountId && sync.status !== "signed-out" && sync.status !== "loading";
+  const setting = status && (!status.configured || reset);
   return (
     <AppShell
+      compact
       right={
-        <div className="flex items-center gap-3">
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
-          <SignedOut>
-            <Link
-              to="/login"
-              className="text-sm font-medium text-muted no-underline hover:text-ink"
-            >
-              Entrar
-            </Link>
-          </SignedOut>
-        </div>
+        <Button variant="ghost" disabled={busy} onClick={() => void leave("game")}>
+          <ArrowLeft className="size-4" />
+          Voltar ao jogo
+        </Button>
       }
     >
-      <div className="anim-rise space-y-6">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.14em] text-muted">
-            Espaço dos pais
-          </p>
-          <h1 className="mt-1 font-display text-title">Progresso do jogador</h1>
-          <p className="mt-2 max-w-xl text-muted">
-            Acompanhe os treinos e ajuste o tempo ao ritmo da criança. Cada partida tem 15 acertos:
-            dois passes e um chute formam um gol. O Nico incentiva sem tirar pontos por errar.
-          </p>
-        </div>
-
-        <ParentAlerts />
-
-        <SignedOut>
-          <Card className="border-accent/20 bg-wash">
-            <p className="font-display text-lg">Salvar no iPad e no computador</p>
-            <p className="mt-1 text-sm text-muted">
-              Entre com a sua conta. O progresso dele acompanha qualquer aparelho — e os avisos de
-              nível aparecem aqui no celular também.
+      {!ready ? <CourseConnectionGate /> : null}
+      {ready ? (
+        <div className="course-parents">
+          <div className="course-page-heading">
+            <p className="course-eyebrow">Espaço dos pais · acesso protegido</p>
+            <h1>Aprender, no ritmo dele.</h1>
+            <p>
+              Conclusão, prática e aprendizagem são coisas diferentes. Aqui você acompanha cada uma
+              delas.
             </p>
-            <Link to="/login" className="mt-3 inline-flex">
-              <Button>Entrar para sincronizar</Button>
-            </Link>
-          </Card>
-        </SignedOut>
-
-        {prizeReady ? (
-          <Card className="border-accent/30 bg-wash">
-            <p className="font-display text-lg">Hora de {prizeLabel(player.prizeName)}</p>
-            <p className="mt-1 text-sm text-muted">
-              Ele completou {PRIZE_EVERY} partidas. Entregue e toque abaixo para recomeçar a
-              contagem.
+          </div>
+          {message ? (
+            <p className="course-connection" role="alert">
+              {message}
             </p>
-            <Button
-              className="mt-4"
-              onClick={() => {
-                claimPrize();
-                save();
-              }}
-            >
-              Marcar prêmio entregue
-            </Button>
-          </Card>
-        ) : null}
-
-        <Card className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium text-muted">Nome do jogador</span>
-            <Input
-              className="mt-2"
-              value={player.childName}
-              onChange={(e) => setChildName(e.target.value)}
-              onBlur={save}
-              maxLength={24}
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-muted">Prêmio das 10 partidas</span>
-            <Input
-              className="mt-2"
-              value={player.prizeName}
-              onChange={(e) => setPrizeName(e.target.value)}
-              onBlur={save}
-              maxLength={40}
-              placeholder="Sorvete, cinema, parque…"
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {["Sorvete", "Cinema", "Parque", "30 min de jogo", "Escolher o jantar"].map(
-                (idea) => (
-                  <button
-                    key={idea}
-                    type="button"
-                    onClick={() => {
-                      setPrizeName(idea);
-                      save();
+          ) : null}
+          {report && sync.status !== "offline" ? (
+            <>
+              <div className="parent-access-bar">
+                <span>
+                  <ShieldCheck className="size-4" /> Acesso temporário; bloqueia ao voltar ao jogo.
+                </span>
+                <Button variant="secondary" disabled={busy} onClick={() => void leave("login")}>
+                  Sair da conta
+                </Button>
+              </div>
+              {sync.legacyAvailable ? (
+                <Card className="parent-report-card">
+                  <h2>Histórico local encontrado</h2>
+                  <p>
+                    Confirme que pertence à criança desta conta. A importação é única e não
+                    substitui progresso mais recente.
+                  </p>
+                  <Button
+                    disabled={sync.busy}
+                    onClick={async () => {
+                      await sync.importLegacy();
+                      await refreshReport();
                     }}
-                    className={cn(
-                      "rounded-full border px-3 py-1.5 text-xs font-medium",
-                      player.prizeName === idea
-                        ? "border-accent bg-wash text-accent"
-                        : "border-line bg-surface text-muted",
-                    )}
                   >
-                    {idea}
-                  </button>
-                ),
-              )}
-            </div>
-            <p className="mt-2 text-sm text-faint">
-              Ele vê na tela. Faltam {missionsToPrize(player)} partidas.
-            </p>
-          </label>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-muted">Som</p>
-              <p className="text-sm text-faint">Bipes curtos em cada acerto</p>
-            </div>
-            <Button
-              variant={player.sound ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => {
-                setSound(!player.sound);
-                save();
-              }}
-            >
-              {player.sound ? "Ligado" : "Mudo"}
-            </Button>
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="font-display text-lg">Tempo extra</h2>
-          <p className="mt-1 text-sm text-muted">
-            Soma segundos no relógio de cada partida. Agora ele tem{" "}
-            <span className="font-medium text-ink">{formatClock(clockMs)}</span> para 15 acertos.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {EXTRA_TIME_OPTIONS.map((sec) => (
-              <button
-                key={sec}
-                type="button"
-                onClick={() => {
-                  setExtraTime(sec);
-                  save();
-                }}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm font-medium tabular-nums",
-                  player.extraTimeSec === sec
-                    ? "border-accent bg-wash text-accent"
-                    : "border-line bg-surface text-muted",
-                )}
-              >
-                {sec === 0 ? "Sem extra" : `+${sec}s`}
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <p className="text-sm text-muted">Hoje</p>
-            <p className="mt-1 font-display text-2xl">
-              {today.correct >= DAILY_GOAL ? "Feito" : "Ainda não"}
-            </p>
-            <p className="text-sm text-muted">
-              {today.correct}/{DAILY_GOAL} acertos
-            </p>
-          </Card>
-          <Card>
-            <p className="text-sm text-muted">Nível</p>
-            <p className="mt-1 font-display text-2xl tabular-nums">{player.level}</p>
-            <p className="text-sm text-muted">{player.xp} XP nesta barra</p>
-          </Card>
-          <Card>
-            <p className="text-sm text-muted">Partidas ganhas</p>
-            <p className="mt-1 font-display text-2xl tabular-nums">{player.totalMissionsPassed}</p>
-            <p className="text-sm text-muted">no total</p>
-          </Card>
-          <Card>
-            <p className="text-sm text-muted">Sequência</p>
-            <p className="mt-1 font-display text-2xl tabular-nums">{streak}</p>
-            <p className="text-sm text-muted">dias com a meta</p>
-          </Card>
-        </div>
-
-        <Card>
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg">Categoria</h2>
-            <Badge className="border-accent/20 bg-wash text-accent">{rank.name}</Badge>
-          </div>
-          <p className="mt-2 text-sm text-muted">{rank.blurb}</p>
-          <p className="mt-1 text-sm text-muted">
-            {formatClock(clockMs)} para 15 acertos
-            {player.extraTimeSec > 0 ? ` (inclui +${player.extraTimeSec}s)` : ""}
-          </p>
-          <Progress
-            className="mt-4"
-            value={RANKS.findIndex((r) => r.id === selectedRank.id) + 1}
-            max={RANKS.length}
-          />
-          <div className="mt-4 flex flex-wrap gap-2">
-            {RANKS.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => {
-                  setRank(r.id as RankId);
-                  save();
-                }}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-medium",
-                  r.id === selectedRank.id
-                    ? "border-accent bg-wash text-accent"
-                    : "border-line bg-surface text-muted",
-                )}
-              >
-                {r.name}
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="font-display text-lg">Melhor tempo por etapa</h2>
-          {PLANETS.every((_, i) => !(player.planetBestMs[i] > 0)) ? (
-            <p className="mt-2 text-sm text-muted">
-              Depois da primeira partida completa, o recorde aparece aqui.
-            </p>
-          ) : (
-            <ul className="mt-3 divide-y divide-line">
-              {PLANETS.map((planet, i) => {
-                const best = player.planetBestMs[i] ?? 0;
-                if (best <= 0) return null;
-                return (
-                  <li key={planet.id} className="flex items-center justify-between py-2.5">
-                    <span className="font-display">{planet.name}</span>
-                    <span className="text-sm tabular-nums text-muted">{formatClock(best)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
-
-        <Card>
-          <h2 className="font-display text-lg">Últimos 14 dias</h2>
-          <div className="mt-4 grid grid-cols-7 gap-2">
-            {days.map((key) => {
-              const d = player.days[key];
-              const met = (d?.correct ?? 0) >= DAILY_GOAL;
-              const some = (d?.correct ?? 0) > 0;
-              return (
-                <div key={key} className="text-center">
-                  <div
-                    className={cn(
-                      "mx-auto h-8 w-8 rounded-sm border",
-                      met
-                        ? "border-accent bg-accent"
-                        : some
-                          ? "border-accent/30 bg-wash"
-                          : "border-line bg-surface",
-                    )}
-                    title={`${key}: ${d?.correct ?? 0} acertos`}
-                  />
-                  <p className="mt-1 text-[10px] text-faint">{key.slice(8)}</p>
+                    Este histórico é nosso · preservar conquistas
+                  </Button>
+                  <Button variant="ghost" onClick={sync.dismissLegacy}>
+                    Não pertence a esta conta
+                  </Button>
+                </Card>
+              ) : null}
+              <div className="course-parent-summary">
+                <Card>
+                  <p>Percurso concluído</p>
+                  <h2>
+                    {normalizeCourse(report.player).completedMatches.length}
+                    <small> / 20 partidas</small>
+                  </h2>
+                  <span>Concluir, inclusive com ajuda, não comprova domínio.</span>
+                </Card>
+                <Card>
+                  <p>Prática recente</p>
+                  <h2>
+                    {report.current.responses}
+                    <small> respostas</small>
+                  </h2>
+                  <span>Últimos sete dias, incluindo correções e repetições.</span>
+                </Card>
+                <Card>
+                  <p>Evidência diária</p>
+                  <h2>
+                    {report.current.independentCorrect}
+                    <small> acertos independentes</small>
+                  </h2>
+                  <span>
+                    Em {report.current.firstResponses} primeiras respostas por conta e dia.
+                  </span>
+                </Card>
+              </div>
+              <div className="course-parent-grid">
+                <CourseSettingsForm player={report.player} saved={refreshReport} />
+                <div className="course-parent-side">
+                  <Card>
+                    <h2 className="font-display text-lg">Percurso de aprendizagem</h2>
+                    <div className="course-parent-cups">
+                      {CHAMPIONSHIPS.map((cup) => {
+                        const completed = COURSE_MATCHES.filter(
+                          (match) =>
+                            match.championshipId === cup.id &&
+                            normalizeCourse(report.player).completedMatches.includes(match.id),
+                        ).length;
+                        return (
+                          <div key={cup.id}>
+                            <div>
+                              <strong>{cup.name}</strong>
+                              <span>{completed}/5</span>
+                            </div>
+                            <Progress value={completed} max={5} />
+                            <p>{cup.description}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                  <Card className="parent-report-card">
+                    <h2>Combinado em família</h2>
+                    <p>
+                      {report.player.prizeName ||
+                        "Opcional: combinem um passeio ou outra experiência."}
+                    </p>
+                    <p>
+                      {Math.min(10, report.player.prizeCycle)} de 10 partidas concluídas, incluindo
+                      replays.
+                    </p>
+                    <p className="parent-report-note">
+                      Ao chegar a dez, o contador espera a entrega. Partidas durante a espera não
+                      viram créditos do próximo ciclo.
+                    </p>
+                    {report.player.prizeCycle >= 10 ? (
+                      <Button
+                        disabled={sync.busy}
+                        onClick={async () => {
+                          const result = await sync.send({ type: "claim-prize" });
+                          if (result && ["applied", "duplicate"].includes(result.status)) {
+                            await refreshReport();
+                            setMessage("Entrega registrada. Começa um novo ciclo de dez partidas.");
+                          } else
+                            setMessage(
+                              useCourseSync.getState().message ??
+                                "Não recebemos confirmação da entrega.",
+                            );
+                        }}
+                      >
+                        Marcar prêmio entregue
+                      </Button>
+                    ) : null}
+                  </Card>
                 </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        <LearningSummary />
-
-        <Card>
-          <h2 className="font-display text-lg">Contas que pedem treino</h2>
-          {weak.length === 0 ? (
-            <p className="mt-2 text-sm text-muted">
-              Ainda não há histórico suficiente. Depois de algumas partidas, as contas mais teimosas
-              aparecem aqui.
-            </p>
+              </div>
+              <ParentLearningReport report={report} />
+              <Card className="parent-report-card">
+                <h2>Segurança e privacidade</h2>
+                <p>
+                  Sem anúncios, chat, ranking público ou compras com dinheiro real. PIN numérico de
+                  seis dígitos, com bloqueio após cinco erros.
+                </p>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setReport(null);
+                    setReset(true);
+                    setPin("");
+                    setConfirmation("");
+                    void parentStatus()
+                      .then(setStatus)
+                      .catch((error) => setMessage(errorText(error)));
+                  }}
+                >
+                  Alterar ou recuperar PIN
+                </Button>
+              </Card>
+            </>
           ) : (
-            <ul className="mt-3 divide-y divide-line">
-              {weak.map((row) => (
-                <li key={factKey(row.fact)} className="flex items-center justify-between py-2.5">
-                  <span className="font-display text-lg tabular-nums">
-                    {row.fact.a} {factOp(row.fact) === "div" ? "÷" : "×"} {row.fact.b}
-                  </span>
-                  <span className="text-sm tabular-nums text-muted">
-                    {Math.round(row.accuracy * 100)}% · {Math.round(row.avgMs / 100) / 10}s
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <Card className="parent-pin-card">
+              <LockKeyhole className="size-7" aria-hidden="true" />
+              <h2>{setting ? "Defina o PIN dos Pais" : "Só para o responsável"}</h2>
+              {!status ? (
+                <>
+                  <p role="status">Verificando o acesso da conta…</p>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      void parentStatus()
+                        .then(setStatus)
+                        .catch((error) => setMessage(errorText(error)))
+                    }
+                  >
+                    Conferir acesso
+                  </Button>
+                </>
+              ) : setting && !status.recentAuth ? (
+                <>
+                  <p>
+                    Para definir ou recuperar o PIN, entre novamente na conta do responsável. Essa
+                    confirmação vale por cinco minutos.
+                  </p>
+                  <Button disabled={busy} onClick={() => void leave("login")}>
+                    Entrar novamente para definir PIN
+                  </Button>
+                </>
+              ) : (
+                <form onSubmit={(event) => void submit(event)}>
+                  <p>
+                    {setting
+                      ? "Escolha seis números e guarde com você. Não use o nome ou a data de nascimento da criança."
+                      : "Digite seu PIN. O acesso dura dez minutos e termina ao voltar ao jogo."}
+                  </p>
+                  <label>
+                    <span>{setting ? "Novo PIN de seis números" : "PIN de seis números"}</span>
+                    <Input
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      required
+                      value={pin}
+                      onChange={(event) => setPin(event.target.value.replace(/\D/g, ""))}
+                    />
+                  </label>
+                  {setting ? (
+                    <label>
+                      <span>Confirme o PIN</span>
+                      <Input
+                        type="password"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        pattern="[0-9]{6}"
+                        maxLength={6}
+                        required
+                        value={confirmation}
+                        onChange={(event) => setConfirmation(event.target.value.replace(/\D/g, ""))}
+                      />
+                    </label>
+                  ) : null}
+                  <Button
+                    type="submit"
+                    disabled={busy || pin.length !== 6 || (!!setting && confirmation.length !== 6)}
+                  >
+                    {busy
+                      ? "Confirmando…"
+                      : setting
+                        ? "Salvar PIN e abrir Pais"
+                        : "Abrir espaço dos Pais"}
+                  </Button>
+                  {status.lockedUntil > Date.now() ? (
+                    <p role="status">
+                      Bloqueado até{" "}
+                      {new Date(status.lockedUntil).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      .
+                    </p>
+                  ) : null}
+                </form>
+              )}
+              {status?.configured && !setting ? (
+                <Button
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    setReset(true);
+                    setPin("");
+                    setMessage("");
+                    void parentStatus()
+                      .then(setStatus)
+                      .catch((error) => setMessage(errorText(error)));
+                  }}
+                >
+                  Esqueci o PIN
+                </Button>
+              ) : null}
+            </Card>
           )}
-        </Card>
-
-        <Card>
-          <h2 className="font-display text-lg">Como o desafio cresce</h2>
-          <ul className="mt-3 space-y-2 text-sm text-muted">
-            <li>Base: multiplicação. Promessa: divisões inteiras. A partir de Titular: metades com vírgula.</li>
-            <li>Treinar com Nico: cinco contas com explicações, sem relógio, sem XP e sem mudar a meta diária ou o prêmio.</li>
-            <li>
-              Cinco capítulos, doze etapas. Completar uma partida abre a próxima etapa e rende de 1
-              a 3 estrelas.
-            </li>
-            <li>
-              XP sobe a cada partida. Os níveis liberam conquistas, de Estreante do time a Lenda do
-              futebol.
-            </li>
-            <li>
-              Níveis 5, 10, 15, 20, 25 e 30, categoria nova e prêmio: aviso no espaço dos pais.
-            </li>
-            <li>Tempo extra no painel: +15s por padrão. Dá para subir até +60s.</li>
-            <li>
-              Campeonato pessoal, sem ranking público, chat ou anúncios. O prêmio é combinado em
-              família.
-            </li>
-            <li>Um pouco por dia: uma partida (15 acertos). A sequência conta dias seguidos.</li>
-            <li>A categoria no painel permite escolher uma etapa adequada ao ritmo da criança.</li>
-          </ul>
-        </Card>
-
-        <Link to="/" className="inline-flex">
-          <Button variant="secondary">Voltar para o jogador</Button>
-        </Link>
-      </div>
+        </div>
+      ) : null}
     </AppShell>
+  );
+}
+
+function CourseSettingsForm({
+  player,
+  saved,
+}: {
+  player: PlayerState;
+  saved: () => Promise<void>;
+}) {
+  const sync = useCourseSync();
+  const [childName, setChildName] = useState(player.childName);
+  const [prizeName, setPrizeName] = useState(player.prizeName);
+  const [sound, setSound] = useState(player.sound);
+  const [durationSec, setDurationSec] = useState(normalizeCourse(player).durationSec);
+  const [message, setMessage] = useState("");
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    setMessage("");
+    const result = await sync.send({
+      type: "settings",
+      childName: childName.trim(),
+      prizeName: prizeName.trim(),
+      sound,
+      durationSec,
+    });
+    if (result && ["applied", "duplicate"].includes(result.status)) {
+      await saved();
+      setMessage("Preferências salvas. Uma tentativa em andamento conserva o tempo original.");
+    } else
+      setMessage(
+        useCourseSync.getState().message ??
+          "Não recebemos confirmação. Suas alterações permanecem neste formulário.",
+      );
+  };
+  return (
+    <Card className="course-settings">
+      <form onSubmit={(event) => void save(event)}>
+        <h2>Preferências para as próximas partidas</h2>
+        <label>
+          <span>Nome do jogador</span>
+          <Input
+            value={childName}
+            maxLength={24}
+            onChange={(event) => setChildName(event.target.value)}
+          />
+        </label>
+        <fieldset>
+          <legend>Tempo para responder as contas</legend>
+          <p>
+            O relógio conta só o tempo de resposta. Ajuda, chutes e pausas não consomem esse prazo.
+          </p>
+          <div className="course-duration-options">
+            {([120, 180, 300] as const).map((value) => (
+              <Button
+                key={value}
+                variant={durationSec === value ? "primary" : "secondary"}
+                aria-pressed={durationSec === value}
+                onClick={() => setDurationSec(value)}
+              >
+                {value / 60} min
+              </Button>
+            ))}
+          </div>
+        </fieldset>
+        <label>
+          <span>Prêmio combinado a cada 10 partidas</span>
+          <Input
+            value={prizeName}
+            maxLength={40}
+            placeholder="Um passeio, escolher o jantar…"
+            onChange={(event) => setPrizeName(event.target.value)}
+          />
+          <small>Opcional. Não muda o conteúdo ou as moedas.</small>
+        </label>
+        <div className="course-sound-setting">
+          <div>
+            <strong>Som do jogo</strong>
+            <p>Bipes curtos durante as jogadas.</p>
+          </div>
+          <Button
+            variant={sound ? "primary" : "secondary"}
+            aria-pressed={sound}
+            onClick={() => setSound(!sound)}
+          >
+            {sound ? "Ligado" : "Mudo"}
+          </Button>
+        </div>
+        <Button type="submit" className="w-full" disabled={sync.busy}>
+          {sync.busy ? "Salvando…" : "Salvar preferências"}
+        </Button>
+        <p className="course-action-status" role="status">
+          {message}
+        </p>
+      </form>
+    </Card>
   );
 }

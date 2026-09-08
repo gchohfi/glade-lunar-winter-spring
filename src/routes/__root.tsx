@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Futebol com Nico: 15 acertos, 5 gols e um treino por dia. Doze etapas e prêmios combinados em família.",
+          "Futebol com Nico: quatro campeonatos, vinte partidas e quinze acertos para marcar cinco gols. Aprendizado e conquistas no seu ritmo.",
       },
       { name: "theme-color", content: "#F4EFE6" },
     ],

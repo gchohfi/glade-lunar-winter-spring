@@ -61,7 +61,16 @@ test("old saves get defaults without changing career, questions, rewards or exis
   delete old.cosmetics;
   const next = migrateState(structuredClone(old));
   assert.deepEqual(next.cosmetics, DEFAULT_COSMETICS);
+  assert.deepEqual(next.course, {
+    version: 1,
+    completedMatches: [],
+    selectedMatchId: "bairro-1",
+    durationSec: 180,
+    rewardDays: {},
+    lastResult: null,
+  });
   delete next.cosmetics;
+  delete next.course;
   assert.deepEqual(next, old);
 });
 test("unlock requires completed stage, never XP, level, selected rank or furthest alone", () => {

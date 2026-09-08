@@ -1,0 +1,158 @@
+.nico-intro-replay {
+  justify-self: center;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.nico-intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, var(--color-club-dark) 92%, transparent);
+}
+
+.nico-intro-dialog {
+  position: fixed;
+  z-index: 81;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(72rem, calc(100% - var(--space-6)));
+  max-height: calc(
+    100dvh - var(--space-6) - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+  );
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-soft);
+}
+
+.nico-intro-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.nico-intro-header h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  line-height: 1.15;
+}
+
+.nico-intro-header p,
+.nico-intro-footer p {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.nico-intro-header p {
+  margin-top: var(--space-2);
+}
+.nico-intro-enter {
+  flex-shrink: 0;
+}
+
+.nico-intro-screen {
+  display: grid;
+  place-items: center;
+  background: var(--color-club-dark);
+  color: var(--color-accent-fg);
+}
+
+.nico-intro-screen video,
+.nico-intro-screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 62dvh;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+
+.nico-intro-footer {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+}
+
+.nico-intro-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.nico-intro-controls button {
+  font-size: 0.875rem;
+  padding-inline: var(--space-3);
+  min-height: 44px;
+}
+
+.nico-intro-sound-note {
+  padding: var(--space-3);
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.nico-intro-dialog :focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.nico-intro-overlay[data-state="closed"],
+.nico-intro-dialog[data-state="closed"] {
+  animation: nico-intro-exit var(--motion-quick) var(--ease-out) both;
+}
+
+@keyframes nico-intro-exit {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .nico-intro-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-4);
+  }
+  .nico-intro-enter {
+    width: 100%;
+  }
+  .nico-intro-footer {
+    padding: var(--space-4);
+  }
+  .nico-intro-controls {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-height: 500px) and (min-width: 601px) {
+  .nico-intro-header {
+    padding: var(--space-3) var(--space-4);
+  }
+  .nico-intro-header p {
+    display: none;
+  }
+  .nico-intro-screen video,
+  .nico-intro-screen img {
+    max-height: 45dvh;
+  }
+  .nico-intro-footer {
+    padding: var(--space-2) var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nico-intro-dialog,
+  .nico-intro-dialog *,
+  .nico-intro-overlay {
+    animation: none !important;
+    transition: none !important;
+  }
+}

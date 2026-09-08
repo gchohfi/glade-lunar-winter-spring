@@ -27,7 +27,7 @@ export function LearningSummary() {
         ].map(({ label, stats }) => (
           <div key={label} className="min-w-0 rounded-md border border-line p-3">
             <h3 className="text-sm text-muted">{label}</h3>
-            <p className="mt-3 text-xs text-muted">Precisão</p>
+            <p className="mt-3 text-xs text-muted">Acertos na prática</p>
             <p className="font-display text-lg">{accuracy(stats.accuracy)}</p>
             <p className="text-xs text-muted">{stats.answered} respostas</p>
             <p className="mt-3 text-xs text-muted">Partidas completas</p>
@@ -40,7 +40,8 @@ export function LearningSummary() {
       </div>
       <p className="mt-3 text-xs text-muted">
         A dificuldade pode mudar entre etapas; menor tempo não significa, sozinho, maior domínio. O
-        tempo usa até 60 partidas guardadas. O treino assistido não entra nestes números.
+        tempo usa até 60 partidas guardadas. Respostas com ajuda dentro das partidas entram no
+        volume de prática. A evidência sem ajuda aparece separada abaixo.
       </p>
       <div className="mt-4 rounded-md border border-line p-4">
         <h3 className="font-display">O que ficou na memória</h3>

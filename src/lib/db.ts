@@ -5,10 +5,8 @@ export type DbSource = "neon" | "pglite";
 
 // An empty/whitespace DATABASE_URL (an easy misconfig in deploy UIs) must mean
 // "unset" — otherwise production would silently run on the PGLite fallback.
-const rawDatabaseUrl =
-  typeof process !== "undefined" ? process.env.DATABASE_URL : undefined;
-const databaseUrl =
-  rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
+const rawDatabaseUrl = typeof process !== "undefined" ? process.env.DATABASE_URL : undefined;
+const databaseUrl = rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
 
 /**
  * Active backend: real **Neon** when `DATABASE_URL` is set (deployed / configured
@@ -18,6 +16,19 @@ const databaseUrl =
  */
 export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
 
+// Explicit local-only persistence. Hosted Vercel workers must never write runtime files.
+const requestedLocalDataDir =
+  typeof process !== "undefined" && !process.env.VERCEL && !process.env.VERCEL_ENV
+    ? process.env.PGLITE_DATA_DIR?.trim() || undefined
+    : undefined;
+// Schemes such as memory:// must never be advertised as durable storage.
+const localDataDir =
+  requestedLocalDataDir && /^(?:\/|[A-Za-z]:[\\/])/.test(requestedLocalDataDir)
+    ? requestedLocalDataDir
+    : undefined;
+export const dbStorage: "persistent" | "temporary" =
+  databaseUrl || localDataDir ? "persistent" : "temporary";
+
 /**
  * Minimal shared SQL surface, satisfied by both Neon and PGLite. Both the
  * tagged-template and `.query()` forms resolve to an array of row objects:
@@ -26,15 +37,13 @@ export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
  *   const rows = await sql`select * from todos where id = ${id}`; // parameterized
  *   const rows2 = await sql.query("select * from todos where id = $1", [id]);
  */
-export interface Sql {
-  <T = Record<string, unknown>>(
-    strings: TemplateStringsArray,
-    ...values: unknown[]
-  ): Promise<T[]>;
-  query<T = Record<string, unknown>>(
-    text: string,
-    params?: unknown[],
-  ): Promise<T[]>;
+export interface SqlQuery {
+  <T = Record<string, unknown>>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]>;
+  query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]>;
+}
+
+export interface Sql extends SqlQuery {
+  transaction<T>(work: (tx: SqlQuery) => Promise<T>): Promise<T>;
 }
 
 /**
@@ -70,7 +79,7 @@ const identity = (v: string) => v;
 type Run = <T>(text: string, params: unknown[]) => Promise<T[]>;
 
 /** Wrap a query runner in the tagged-template + `.query()` `Sql` surface. */
-function toSql(run: Run): Sql {
+function toSql(run: Run): SqlQuery {
   const sql = (async <T = Record<string, unknown>>(
     strings: TemplateStringsArray,
     ...values: unknown[]
@@ -79,7 +88,7 @@ function toSql(run: Run): Sql {
     let text = strings[0];
     for (let i = 0; i < values.length; i += 1) text += `$${i + 1}${strings[i + 1]}`;
     return run<T>(text, values);
-  }) as unknown as Sql;
+  }) as unknown as SqlQuery;
   sql.query = <T = Record<string, unknown>>(text: string, params: unknown[] = []) =>
     run<T>(text, params);
   return sql;
@@ -94,9 +103,30 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
     const pool = new Pool({ connectionString: databaseUrl });
-    return toSql(async <T>(text: string, params: unknown[]) => {
+    const sql = toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];
+    });
+    return Object.assign(sql, {
+      async transaction<T>(work: (tx: SqlQuery) => Promise<T>): Promise<T> {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const result = await work(
+            toSql(async <R>(text: string, params: unknown[]) => {
+              const response = await client.query(text, params);
+              return response.rows as R[];
+            }),
+          );
+          await client.query("COMMIT");
+          return result;
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        } finally {
+          client.release();
+        }
+      },
     });
   })().catch((err) => {
     globalRef.__pgSqlPromise__ = undefined;
@@ -112,6 +142,7 @@ async function createPgliteSql(): Promise<Sql> {
   globalRef.__pgliteInstance__ ??= (async () => {
     const { PGlite } = await import("@electric-sql/pglite");
     const pg = new PGlite({
+      ...(localDataDir ? { dataDir: localDataDir } : {}),
       parsers: {
         [OID_INT8]: Number,
         [OID_DATE]: identity,
@@ -129,7 +160,7 @@ async function createPgliteSql(): Promise<Sql> {
   });
   const pg = await globalRef.__pgliteInstance__;
 
-  // Apply migrations/ (the single schema source) so preview matches production.
+  // Apply migrations/ (including parent evidence and legacy archives) so preview matches production.
   // SQL is inlined by the bundler via import.meta.glob (no runtime fs); applied
   // files are tracked in _migrations. The glob does not descend, so the opt-in
   // auth schema under migrations/auth/ stays out. Runs once per module instance
@@ -142,9 +173,7 @@ async function createPgliteSql(): Promise<Sql> {
       import: "default",
       eager: true,
     }) as Record<string, string>;
-    const doneRows = await pg.query<{ name: string }>(
-      "select name from _migrations",
-    );
+    const doneRows = await pg.query<{ name: string }>("select name from _migrations");
     const done = doneRows.rows.map((r) => r.name);
     for (const { name, path } of pendingMigrations(Object.keys(migrations), done)) {
       // Apply + record atomically (parity with scripts/migrate.mjs) so a failed
@@ -161,9 +190,21 @@ async function createPgliteSql(): Promise<Sql> {
   globalRef.__pgliteMigrateChain__ = pass;
   await pass;
 
-  return toSql(async <T>(text: string, params: unknown[]) => {
+  const sql = toSql(async <T>(text: string, params: unknown[]) => {
     const result = await pg.query<T>(text, params);
     return result.rows;
+  });
+  return Object.assign(sql, {
+    transaction<T>(work: (tx: SqlQuery) => Promise<T>): Promise<T> {
+      return pg.transaction((tx) =>
+        work(
+          toSql(async <R>(text: string, params: unknown[]) => {
+            const response = await tx.query<R>(text, params);
+            return response.rows;
+          }),
+        ),
+      );
+    },
   });
 }
 

@@ -17,6 +17,10 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import pg from "pg";
 import { pendingMigrations } from "./migration-plan.mjs";
+import { assertDeploymentEnvironment } from "./deployment-env.mjs";
+
+// This also protects direct db:migrate invocations, before any pool is opened.
+assertDeploymentEnvironment();
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
