@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Clock, X } from "lucide-react";
+import { Clock, Coins, Target, X } from "lucide-react";
 import { NumberPad } from "@/components/number-pad";
+import { useGameDate } from "@/components/use-game-date";
 import { FootballPitch } from "@/components/flight-track";
 import { MascotScene } from "@/components/mascot-scene";
 import { StarRow } from "@/components/star-row";
@@ -10,6 +11,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { drawNext, pickMissionFacts, recycleMiss } from "@/lib/game/adaptive";
+import { coachedMissionFacts, evaluateFocus, getDailyCoach } from "@/lib/game/coaching";
+import { clubSummary } from "@/lib/game/club";
 import type { ProgressDelta } from "@/lib/game/progress";
 import { xpToNext } from "@/lib/game/progress";
 import {
@@ -30,9 +33,9 @@ import {
   factAnswer,
   factOp,
   parseGuess,
-  guessesMatch,
   formatAnswer,
   formatClock,
+  todayKey,
   type Fact,
 } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
@@ -42,6 +45,7 @@ type Phase = "ready" | "running" | "won" | "lost";
 type Flash = "none" | "ok" | "bad";
 
 export function MissionPlay() {
+  const gameDate = useGameDate();
   const navigate = useNavigate();
   const snapshot = usePlayer((s) => s.snapshot);
   const applyMission = usePlayer((s) => s.applyMission);
@@ -72,6 +76,14 @@ export function MissionPlay() {
   const [delta, setDelta] = useState<ProgressDelta | null>(null);
   const [dailyJustDone, setDailyJustDone] = useState(false);
   const [earnedCosmetics, setEarnedCosmetics] = useState<CosmeticItem[]>([]);
+  const [coinsGained, setCoinsGained] = useState(0);
+  const [focusCorrect, setFocusCorrect] = useState(0);
+  const [retainedFacts, setRetainedFacts] = useState(0);
+  const [localSaved, setLocalSaved] = useState(true);
+  const coachRef = useRef<ReturnType<typeof getDailyCoach> | null>(null);
+  const coach =
+    (phase !== "ready" && coachRef.current) || getDailyCoach(snapshot(), rank.id, gameDate);
+  const club = clubSummary(usePlayer(), todayKey(gameDate));
 
   const queueRef = useRef<Fact[]>([]);
   const startedAtRef = useRef(0);
@@ -135,6 +147,10 @@ export function MissionPlay() {
       setPrizeReady(result.prizeReady);
       setDelta(result.progress);
       setDailyJustDone(result.dailyJustDone);
+      setCoinsGained(result.clubReward.coinsGained);
+      setFocusCorrect(result.focus.correct);
+      setRetainedFacts(result.retainedFacts);
+      setLocalSaved(result.localSaved);
       setEarnedCosmetics(newCosmetics(state, result.state));
       setPhase(passed ? "won" : "lost");
       if (passed) {
@@ -170,6 +186,10 @@ export function MissionPlay() {
 
   const begin = () => {
     setEarnedCosmetics([]);
+    setCoinsGained(0);
+    setFocusCorrect(0);
+    setRetainedFacts(0);
+    setLocalSaved(true);
     unlockAudio();
     if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
     winningRef.current = false;
@@ -185,7 +205,10 @@ export function MissionPlay() {
     const missionLimit = timeWithBoost(r, state.consecutiveFails, state.extraTimeSec * 1000);
     limitRef.current = missionLimit;
     setRunLimit(missionLimit);
-    const deck = pickMissionFacts({ ...state, rankId: p.rankId });
+    const runStartedAt = Date.now();
+    const runState = { ...state, rankId: p.rankId };
+    coachRef.current = getDailyCoach(runState, p.rankId, new Date(runStartedAt));
+    const deck = coachedMissionFacts(runState, new Date(runStartedAt));
     const first = deck[0] ?? { a: 3, b: 4 };
     queueRef.current = deck.slice(1);
     factRef.current = first;
@@ -201,7 +224,7 @@ export function MissionPlay() {
     setPrizeReady(false);
     setDelta(null);
     setDailyJustDone(false);
-    startedAtRef.current = Date.now();
+    startedAtRef.current = runStartedAt;
     qStartRef.current = performance.now();
     setPhase("running");
   };
@@ -209,6 +232,8 @@ export function MissionPlay() {
   const record = (ok: boolean) => {
     const ms = performance.now() - qStartRef.current;
     triedRef.current.push({ fact: factRef.current, ok, ms });
+    if (coachRef.current)
+      setFocusCorrect(evaluateFocus(coachRef.current, triedRef.current).correct);
   };
 
   const goNext = (ok: boolean, missed?: Fact) => {
@@ -244,7 +269,7 @@ export function MissionPlay() {
     const current = factRef.current;
     const answer = factAnswer(current);
     answerLockedRef.current = true;
-    if (guessesMatch(guess, answer)) {
+    if (guess === answer) {
       record(true);
       playCorrect();
       setFlash("ok");
@@ -353,6 +378,21 @@ export function MissionPlay() {
             <p className="text-sm text-muted">
               Dois passes e um chute fazem um gol. Digite a resposta e toque em Confirmar.
             </p>
+            <Card className="mt-4 p-4">
+              <p className="flex items-center gap-2 text-sm font-medium text-accent">
+                <Target className="size-4" aria-hidden="true" />
+                {coach.focusLabel}
+              </p>
+              <p className="mt-2 text-sm text-muted">{coach.description}</p>
+              <p className="mt-2 text-sm">
+                Três contas especiais. Acerte na primeira tentativa, sem ver a resposta.
+              </p>
+              <p className="mt-2 text-xs text-muted">
+                {club.missionRewarded
+                  ? "As moedas da missão de hoje já são suas. Pode jogar só por diversão."
+                  : "Partida completa: 20 moedas. Bônus de foco: mais 10. Uma vez por dia."}
+              </p>
+            </Card>
             {bestHere > 0 ? (
               <p className="mt-2 font-display text-lg tabular-nums">
                 Recorde: {formatClock(bestHere)}
@@ -403,9 +443,39 @@ export function MissionPlay() {
         </p>
         {phase === "won" && dailyJustDone ? (
           <p className="mt-2 max-w-sm font-display text-accent">
-            Treino de hoje cumprido. A sequência continua.
+            Treino de hoje cumprido. Pode encerrar e voltar quando quiser.
           </p>
         ) : null}
+        <Card className="mt-4 w-full max-w-sm p-4 text-left" aria-label="O que você conquistou">
+          {!localSaved ? (
+            <p role="alert" className="mb-3 text-sm text-bad">
+              Não conseguimos salvar neste aparelho. As conquistas estão nesta sessão; peça ajuda a
+              um adulto antes de fechar o jogo.
+            </p>
+          ) : null}
+          <p className="flex items-center gap-2 font-display text-lg text-accent">
+            <Coins className="size-5" aria-hidden="true" />
+            {coinsGained > 0 ? `+${coinsGained} moedas do clube` : "Cada jogada ajuda a aprender"}
+          </p>
+          <p className="mt-2 text-sm">
+            {coach.focusLabel}: {focusCorrect}/3 contas certas na primeira tentativa.
+          </p>
+          {retainedFacts > 0 ? (
+            <p className="mt-2 text-sm text-muted">
+              Você lembrou {retainedFacts} conta{retainedFacts > 1 ? "s" : ""} que já tinha acertado
+              em outro dia.
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-muted">
+              Vamos reencontrar essas contas em outros dias para ver o que ficou na memória.
+            </p>
+          )}
+          <p className="mt-3 text-sm text-muted">
+            {phase === "won"
+              ? "Seu XP continua inteiro. As moedas servem só para escolher o visual do seu clube."
+              : "Nada do que você conquistou foi perdido. O treino com explicações está disponível, sem cronômetro."}
+          </p>
+        </Card>
         {phase === "won" && delta?.isRecord ? (
           <p className="mt-1 font-display text-accent">Novo recorde de tempo!</p>
         ) : null}
@@ -455,6 +525,14 @@ export function MissionPlay() {
           </Card>
         ) : null}
         <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
+          {phase === "won" ? (
+            <Link
+              to="/vestiario"
+              className={cn(buttonVariants({ size: "lg" }), "w-full no-underline")}
+            >
+              Escolher minha conquista
+            </Link>
+          ) : null}
           <Link
             to="/treino"
             className={cn(buttonVariants({ variant: "secondary" }), "w-full no-underline")}
@@ -464,6 +542,7 @@ export function MissionPlay() {
           {phase === "lost" || !prizeReady ? (
             <Button
               size="lg"
+              variant="secondary"
               className="w-full"
               onClick={() => {
                 if (delta?.unlockedPlanet != null) setPlanet(delta.unlockedPlanet);
@@ -473,7 +552,7 @@ export function MissionPlay() {
               {nextPlanet
                 ? `Jogar: ${nextPlanet.name}`
                 : phase === "won"
-                  ? "Jogar esta etapa de novo"
+                  ? "Jogar mais, se quiser"
                   : "Tentar de novo"}
             </Button>
           ) : null}
@@ -535,6 +614,13 @@ export function MissionPlay() {
       <div className="mx-auto mission-layout">
         <section className="match-main">
           <FootballPitch correct={correct} combo={combo} feedback={flash} />
+          <p
+            className="flex items-center justify-between gap-2 px-2 text-sm text-muted"
+            aria-live="polite"
+          >
+            <span>{coach.focusLabel} · foco da partida</span>
+            <span className="tabular-nums">{focusCorrect}/3</span>
+          </p>
 
           <div className="mission-question" data-feedback={flash}>
             <p className="mission-question-label">

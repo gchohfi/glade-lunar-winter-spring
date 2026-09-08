@@ -5,6 +5,7 @@ import { migrateState } from "./progress";
 import { fireParentNotify } from "./notify";
 import { firstPlanetForRank } from "./worlds";
 import { equipCosmetic as equipCosmeticState } from "./wardrobe";
+import { chooseGoal, purchaseCosmetic, type PurchaseReason } from "./club";
 import {
   STORAGE_KEY,
   EXTRA_TIME_OPTIONS,
@@ -32,11 +33,15 @@ type PlayerStore = PlayerState & {
   setNotifyParents: (on: boolean) => void;
   markAlertsRead: () => void;
   finishOnboarding: (name: string) => void;
-  applyMission: (input: MissionApplyInput) => ReturnType<typeof applyMissionResult>;
+  applyMission: (
+    input: MissionApplyInput,
+  ) => ReturnType<typeof applyMissionResult> & { localSaved: boolean };
   claimPrize: () => void;
   replaceState: (state: PlayerState) => void;
   snapshot: () => PlayerState;
   equipCosmetic: (id: string) => "equipped" | "unavailable" | "storage-error";
+  buyCosmetic: (id: string) => PurchaseReason | "unavailable" | "storage-error";
+  setCosmeticGoal: (id: string | null) => "selected" | "cleared" | "unavailable" | "storage-error";
 };
 
 function pickState(s: PlayerState): PlayerState {
@@ -67,6 +72,7 @@ function pickState(s: PlayerState): PlayerState {
     notifyParents: s.notifyParents,
     prizeName: s.prizeName,
     cosmetics: s.cosmetics,
+    club: s.club,
   });
 }
 
@@ -100,6 +106,23 @@ function writeLocal(state: PlayerState): boolean {
 export const usePlayer = create<PlayerStore>()((set, get) => ({
   ...emptyState(),
   hydrated: false,
+  buyCosmetic: (id) => {
+    if (!get().hydrated) return "unavailable";
+    const result = purchaseCosmetic(pickState(get()), id);
+    if (!result.ok) return result.reason;
+    if (!writeLocal(result.state)) return "storage-error";
+    set({ club: result.state.club });
+    return "purchased";
+  },
+  setCosmeticGoal: (id) => {
+    if (!get().hydrated) return "unavailable";
+    const current = pickState(get());
+    const next = chooseGoal(current, id);
+    if (next === current) return "unavailable";
+    if (!writeLocal(next)) return "storage-error";
+    set({ club: next.club });
+    return id === null ? "cleared" : "selected";
+  },
   equipCosmetic: (id) => {
     if (!get().hydrated) return "unavailable";
     const current = pickState(get());
@@ -160,11 +183,11 @@ export const usePlayer = create<PlayerStore>()((set, get) => ({
   applyMission: (input) => {
     const result = applyMissionResult(pickState(get()), input);
     set({ ...result.state });
-    writeLocal(result.state);
+    const localSaved = writeLocal(result.state);
     if (result.state.notifyParents && result.newAlerts.length > 0) {
       fireParentNotify(result.newAlerts[0]);
     }
-    return result;
+    return { ...result, localSaved };
   },
   claimPrize: () => {
     const next = claimPrizeState(pickState(get()));

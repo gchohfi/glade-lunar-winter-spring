@@ -4,5 +4,6 @@ import { normalizeCosmetics } from "@/lib/game/wardrobe";
 export function useCosmetics() {
   const cosmetics = usePlayer((s) => s.cosmetics);
   const planetStars = usePlayer((s) => s.planetStars);
-  return normalizeCosmetics(cosmetics, { planetStars });
+  const club = usePlayer((s) => s.club);
+  return normalizeCosmetics(cosmetics, { planetStars, club });
 }

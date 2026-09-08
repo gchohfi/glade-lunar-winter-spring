@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { weeklyLearning } from "@/lib/game/learning";
+import { learningEvidence } from "@/lib/game/coaching";
 import { usePlayer } from "@/lib/game/store";
 import { formatClock } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils";
 export function LearningSummary() {
   const player = usePlayer();
   const { current, previous } = weeklyLearning(player);
+  const evidence = learningEvidence(player);
   const accuracy = (value: number | null) => (value === null ? "Sem respostas" : `${value}%`);
   const time = (value: number | null) =>
     value === null ? "Sem partidas completas" : formatClock(value);
@@ -40,6 +42,17 @@ export function LearningSummary() {
         A dificuldade pode mudar entre etapas; menor tempo não significa, sozinho, maior domínio. O
         tempo usa até 60 partidas guardadas. O treino assistido não entra nestes números.
       </p>
+      <div className="mt-4 rounded-md border border-line p-4">
+        <h3 className="font-display">O que ficou na memória</h3>
+        <p className="mt-2 text-sm">
+          {evidence.returning} contas certas na primeira tentativa em pelo menos dois dias
+          diferentes; {evidence.reinforced} em três ou mais dias.
+        </p>
+        <p className="mt-2 text-xs text-muted">
+          Esse registro começa nesta versão. Correções após ver a resposta e o treino assistido não
+          contam como evidência independente. Não é um diagnóstico de domínio.
+        </p>
+      </div>
       <Link
         to="/treino"
         className={cn(buttonVariants({ variant: "secondary" }), "mt-4 w-full no-underline")}

@@ -44,14 +44,16 @@ const {
 } = load("wardrobe");
 const earned = () => ({ ...emptyState(), planetStars: [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0] });
 
-test("catalog contains only valid real assets and two cosmetic milestone rewards", () => {
-  assert.equal(COSMETICS.length, 4);
-  assert.equal(new Set(COSMETICS.map((i) => i.id)).size, 4);
+test("catalog preserves four free items and adds four earned-coin cosmetics", () => {
+  assert.equal(COSMETICS.length, 8);
+  assert.equal(new Set(COSMETICS.map((i) => i.id)).size, 8);
+  assert.equal(COSMETICS.filter((item) => item.cost === undefined).length, 4);
+  assert.equal(COSMETICS.filter((item) => item.stageIndex !== null).length, 2);
   for (const item of COSMETICS) {
     const data = readFileSync(new URL("../public" + item.art, import.meta.url));
     assert.equal(data.toString("ascii", 8, 12), "WEBP");
     assert.ok(data.length < 350_000);
-    assert.ok(!("cost" in item));
+    if (item.cost !== undefined) assert.ok(Number.isSafeInteger(item.cost) && item.cost > 0);
   }
 });
 test("old saves get defaults without changing career, questions, rewards or existing fields", () => {
