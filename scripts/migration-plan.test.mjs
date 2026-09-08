@@ -15,6 +15,7 @@ import { projectRoot } from "./with-app-env.mjs";
 import { temporaryWorkspace } from "./test-support/workspace.mjs";
 
 const AUTH_MIGRATION = "0001_auth.sql";
+const SERVER_ONLY_MIGRATION = "20260908232808_game_server_only_access.sql";
 
 /**
  * The auth-on copy of the Better Auth schema and its source, or null when the
@@ -78,6 +79,7 @@ test("Missão Tabuada applies auth then game migrations once, in order", () => {
       "0003_course_sync.sql",
       "0004_parent_evidence.sql",
       "0005_legacy_attempt_archive.sql",
+      SERVER_ONLY_MIGRATION,
     ],
   );
   assert.deepEqual(
@@ -87,6 +89,7 @@ test("Missão Tabuada applies auth then game migrations once, in order", () => {
       "0003_course_sync.sql",
       "0004_parent_evidence.sql",
       "0005_legacy_attempt_archive.sql",
+      SERVER_ONLY_MIGRATION,
     ],
   );
   assert.deepEqual(
@@ -96,6 +99,7 @@ test("Missão Tabuada applies auth then game migrations once, in order", () => {
       "0003_course_sync.sql",
       "0004_parent_evidence.sql",
       "0005_legacy_attempt_archive.sql",
+      SERVER_ONLY_MIGRATION,
     ]),
     [],
   );
